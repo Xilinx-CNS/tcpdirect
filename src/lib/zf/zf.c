@@ -8,6 +8,7 @@
 #include <zf_internal/utils.h>
 #include <zf_internal/attr.h>
 #include <zf_internal/private/zf_hal.h>
+#include <dlfcn.h>
 
 
 struct zf_state zf_state;
@@ -54,13 +55,40 @@ int zf_init(void)
   if( rc < 0 ) {
     zf_log_stack_err(NO_STACK, "%s: Failed to initialize Control Plane: %s\n",
                      __func__, strerror(-rc));
-    oo_fd_close(zf_state.cplane_fd);
-    goto fail;
+    goto fail1;
+  }
+
+  zf_state.efcp_so_handle = dlopen("libefcp.so", RTLD_NOW);
+  if( ! zf_state.efcp_so_handle ) {
+    zf_log_stack_err(NO_STACK, "%s: Failed to open ef_vi Control Plane: %s\n",
+                     __func__, dlerror());
+    goto fail1;
+  }
+
+#define CP_FUNC_INIT_FUNC_PTR(x) \
+  zf_state.cp.x = reinterpret_cast<decltype(zf_state.cp.x)>( \
+                                  dlsym(zf_state.efcp_so_handle, "ef_cp_" #x)); \
+  if( ! zf_state.cp.x ) { \
+    zf_log_stack_err(NO_STACK, "%s: Failed to link to ef_vi Control Plane: %s\n", \
+                     __func__, #x); \
+    goto fail2; \
+  }
+  FOR_EACH_EF_CP_FUNCTION(CP_FUNC_INIT_FUNC_PTR)
+
+  rc = zf_state.cp.init(&zf_state.cp_handle, 0);
+  if( rc < 0 ) {
+    zf_log_stack_err(NO_STACK, "%s: Failed to initialize ef_vi Control Plane: %s\n",
+                     __func__, strerror(-rc));
+    goto fail2;
   }
 
   zf_log_stack_info(NO_STACK, "ZF library initialized\n");
   return 0;
 
+fail2:
+  dlclose(zf_state.efcp_so_handle);
+fail1:
+  oo_fd_close(zf_state.cplane_fd);
 fail:
   zf_log_stderr();
   return rc;
@@ -69,6 +97,8 @@ fail:
 
 extern int zf_deinit(void)
 {
+  zf_state.cp.fini(zf_state.cp_handle);
+  dlclose(zf_state.efcp_so_handle);
   oo_fd_close(zf_state.cplane_fd);
   zf_log_stderr();
   return 0;
