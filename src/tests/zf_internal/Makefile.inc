@@ -23,7 +23,7 @@ $(TEST_OBJS): ZF_CFLAGS_COMPONENT := -std=gnu99 $(ZF_CFLAGS_COMMON) $(ONLOAD_CFL
 
 $(INT_BINS):
 	@mkdir -p $(dir $@)
-	$(CLINK) $^ -lm -lpthread -lrt -o $@
+	$(CLINK) $^ -lm -lpthread -lrt -ldl -o $@
 
 .PHONY: zf_internal
 all: zf_internal

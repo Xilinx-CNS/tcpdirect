@@ -74,7 +74,7 @@ $(UT_BINS): $(ZF_STATIC_LIB)
 
 $(UT_BINS):
 	@mkdir -p $(dir $@)
-	$(CLINK) $^ -lm -lpthread -lrt -lstdc++ -o $@
+	$(CLINK) $^ -lm -lpthread -lrt -ldl -lstdc++ -o $@
 
 ENV := EF_VI_CTPIO_MODE=fast # default mode would slow down the tests considerably
 # We would like the flexibility to use TODOs to indicate tests that *might*
