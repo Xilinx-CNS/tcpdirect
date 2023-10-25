@@ -678,6 +678,12 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
       goto fail4;
   }
 
+  rc = zf_state.cp.register_intf(zf_state.cp_handle, ifindex, &sti->nic[nicno], 0);
+  if( rc < 0 ) {
+    zf_log_stack_err(st, "Failed to register cplane intf %d (rc = %d)\n", ifindex, rc);
+    goto fail4;
+  }
+
   ci_sllist_init(&st_nic->pollout_req_list);
 
   ci_assert(CI_IS_POW2(if_cplane_info->rx_hwports));
