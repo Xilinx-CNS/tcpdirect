@@ -178,35 +178,35 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
                      bool wait)
 {
   struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
-  struct cp_fwd_key key;
-  struct cp_fwd_data data;
-  cicp_verinfo_t verinfo;
-  int rc;
+  ef_cp_route_verinfo verinfo = EF_CP_ROUTE_VERINFO_INIT;
+  int64_t rc;
   int64_t time_limit_us;
   int64_t time_used_us = 0;
   struct timespec start;
   bool is_multi = CI_IP_IS_MULTICAST(path->dst);
+  size_t prefix_space;
+  ethvlanipudphdr pkt = {
+    .ip = {
+      .ihl = sizeof(iphdr) / 4,
+      .version = 4,
+      .protocol = IPPROTO_UDP,   /* doesn't have to be correct */
+      .saddr = !CI_IP_IS_MULTICAST(path->src) ? path->src : 0,
+      .daddr = path->dst,
+    },
+  };
+  ef_cp_fwd_meta meta = {
+    .ifindex = sti->sti_ifindex,
+    .iif_ifindex = -1,
+  };
 
   if( is_multi )
     return __zf_cplane_get_path_mcast(st, path, wait);
 
-  oo_cp_verinfo_init(&verinfo);
-  memset(&key, 0, sizeof(key));
-  key.dst = CI_ADDR_SH_FROM_IP4(path->dst);
-  key.ifindex = sti->sti_ifindex;
-  key.iif_ifindex = CI_IFID_BAD;
-  if( !CI_IP_IS_MULTICAST(path->src) )
-    key.src = CI_ADDR_SH_FROM_IP4(path->src);
-  else
-    key.src = CI_ADDR_SH_FROM_IP4(INADDR_ANY);
-  key.tos = 0;
-  key.flag = CP_FWD_KEY_REQ_WAIT;
-
   zf_log_cplane_trace(st, "Get route: from " CI_IP_PRINTF_FORMAT
                       " to " CI_IP_PRINTF_FORMAT " iif %d\n",
-                      CI_IP_PRINTF_ARGS(&key.src.ip4),
-                      CI_IP_PRINTF_ARGS(&key.dst.ip4),
-                      key.ifindex);
+                      CI_IP_PRINTF_ARGS(&pkt.ip.saddr),
+                      CI_IP_PRINTF_ARGS(&pkt.ip.daddr),
+                      meta.ifindex);
 
   time_limit_us = wait ? sti->arp_reply_timeout : 0;
 
@@ -214,50 +214,61 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
     clock_gettime(CLOCK_MONOTONIC, &start);
 
   do {
-    struct timespec now;
+    prefix_space = offsetof(ethvlanipudphdr, ip);
+    rc = zf_state.cp.resolve(zf_state.cp_handle, &pkt.ip, &prefix_space, &meta,
+                             &verinfo, EF_CP_RESOLVE_F_BIND_SRC);
+    if( rc == -EAGAIN ) {
+      struct timespec now;
 
-    rc = oo_cp_route_resolve(&zf_state.cplane_handle,
-                             &verinfo, &key, &data);
-    if( rc < 0 || data.base.ifindex != sti->sti_ifindex ) {
-      if( rc == 0 ) {
-        static int printed = 0;
-        if( ! printed ) {
-          zf_log_cplane_err(st, "Route goes via unknown interface ifindex=%d, "
-                            "see cplane_alien_ifindex counter in zf_stackdump\n",
-                            data.base.ifindex);
-          printed = 1;
-        }
-        st->stats.cplane_alien_ifindex++;
-      }
-      else
-        zf_log_cplane_err(st, "Failed to resolve the route: %s\n",
-                          strerror(-rc));
+      if( time_limit_us == 0 )
+        break;
+
+      clock_gettime(CLOCK_MONOTONIC, &now);
+      time_used_us = ((now.tv_sec - start.tv_sec) * 1000000) +
+                     ((now.tv_nsec - start.tv_nsec) / 1000);
+
+      if( time_used_us >= time_limit_us )
+        break;
+
+      usleep(1);
+      continue;
+    }
+    /* It is no longer safe to require meta.ifindex == sti->sti_ifindex when
+     * resolving routes. For example, sti->sti_ifindex could refer to a VLAN
+     * interface (or really any non-physical interface), but meta.ifindex
+     * will only ever return physical ifindices because we will only ever
+     * register physical interfaces with the cplane API. */
+    if( rc >= 0 && meta.ifindex > 0 )
+      break;
+    if( rc == -ETIMEDOUT ) {
+      zf_log_cplane_err(st, "ARP failed for " CI_IP_PRINTF_FORMAT "\n",
+                        CI_IP_PRINTF_ARGS(&path->dst));
       path->rc = ZF_PATH_NOROUTE;
       return path->rc;
     }
+    if( rc == -EADDRNOTAVAIL ) {
+      static int printed = 0;
+      if( ! printed ) {
+        zf_log_cplane_err(st, "Route goes via unknown interface ifindex=%d, "
+                          "see cplane_alien_ifindex counter in zf_stackdump\n",
+                          meta.ifindex);
+        printed = 1;
+      }
+      st->stats.cplane_alien_ifindex++;
+    }
+    else
+      zf_log_cplane_err(st, "Failed to resolve the route: %s\n",
+                        strerror(-rc));
+    path->rc = ZF_PATH_NOROUTE;
+    return path->rc;
 
     /* In theory, we shoud break out if we see FLAG_ARP_FAILED popping up
      * in a non-first loop.  But if we see ARP_FAILED from the start, we
      * should give a chance to re-resolve.  For now we always loop. */
-    if( (data.flags & CICP_FWD_DATA_FLAG_ARP_VALID) || (time_limit_us == 0) )
-      break;
-
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    time_used_us = ((now.tv_sec - start.tv_sec) * 1000000) +
-                   ((now.tv_nsec - start.tv_nsec) / 1000);
-
-    if( time_used_us >= time_limit_us )
-      break;
-
-    usleep(1);
   } while( 1 );
 
-  if( ! (data.flags & CICP_FWD_DATA_FLAG_ARP_VALID) ) {
-    if( data.flags & CICP_FWD_DATA_FLAG_ARP_FAILED ) {
-      zf_log_cplane_err(st, "ARP failed for " CI_IP_PRINTF_FORMAT "\n",
-                        CI_IP_PRINTF_ARGS(&path->dst));
-    }
-    else if( time_limit_us ) {
+  if( rc == -EAGAIN ) {
+    if( time_limit_us ) {
       zf_log_cplane_err(st, "ARP timeout for " CI_IP_PRINTF_FORMAT "\n",
                         CI_IP_PRINTF_ARGS(&path->dst));
     }
@@ -265,33 +276,27 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
     return path->rc;
   }
 
+  ethhdr* eth = (ethhdr*)((char*)&pkt.ip - prefix_space);
   zf_log_cplane_trace(st, "Got route: from " CI_IP_PRINTF_FORMAT
                       " via " CI_MAC_PRINTF_FORMAT
-                      " iif %d encap %x\n",
-                      CI_IP_PRINTF_ARGS(&data.base.src),
-                      CI_MAC_PRINTF_ARGS(&data.dst_mac),
-                      data.base.ifindex, data.encap.type);
+                      " iif %d ethertype %x\n",
+                      CI_IP_PRINTF_ARGS(&pkt.ip.saddr),
+                      CI_MAC_PRINTF_ARGS(&eth->h_dest),
+                      meta.ifindex, ntohs(eth->h_proto));
 
   if( time_limit_us ) {
     zf_log_cplane_info(st, "ARP for " CI_IP_PRINTF_FORMAT
                        " via ifindex %d took %dus\n",
                        CI_IP_PRINTF_ARGS(&path->dst),
-                       data.base.ifindex, time_used_us);
+                       meta.ifindex, time_used_us);
   }
 
-  path->vlan = get_vlan(&data.encap);
-  path->mtu = data.base.mtu;
-  path->src = data.base.src.ip4;
-  memcpy(path->mac, &data.dst_mac, ETH_ALEN);
+  path->vlan = eth->h_proto == htons(ETH_P_8021Q) ?
+               ntohs(pkt.vlan_tag) : ZF_NO_VLAN;
+  path->mtu = meta.mtu;
+  path->src = pkt.ip.saddr;
+  memcpy(path->mac, (char*)&pkt.ip - prefix_space, ETH_ALEN);
   path->rc = ZF_PATH_OK;
-
-  /* When we return ZF_PATH_OK here we are saying that it's safe to pin the
-   * zocket to a nic, which relies on there being something to pin to.
-   *
-   * If we're returning ok them we think we've got a valid route over a ZF
-   * interface, which implies we've got at least one tx_hwport available.
-   */
-  zf_assert(data.hwports);
 
   return path->rc;
 }
