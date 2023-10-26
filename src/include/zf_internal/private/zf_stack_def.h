@@ -282,8 +282,6 @@ struct zf_stack_impl {
   /* Onload driver handle for shared-memory purposes. */
   int onload_dh;
 
-  int hwport_to_nicno[sizeof(cicp_hwport_mask_t) * 8];
-
   /* Must be last field */
   zf_allocator alloc;
 };

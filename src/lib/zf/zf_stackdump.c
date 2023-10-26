@@ -117,11 +117,6 @@ void dump_stack(SkewPointer<zf_stack_impl> stimpl)
           stack->stats.discards[EF_EVENT_RX_DISCARD_OTHER],
           stack->stats.discards[EF_EVENT_RX_DISCARD_INNER_CSUM_BAD],
           stack->stats.non_tcpudp);
-  zf_dump("  hwport_to_nicno: [");
-  for( uint32_t i = 0;
-       i < sizeof(stimpl->hwport_to_nicno)/sizeof(stimpl->hwport_to_nicno[0]);
-       ++i )
-    zf_dump("%d,", stimpl->hwport_to_nicno[i]);
   zf_dump("]\n");
 
   for( int i = 0; i < stack->nics_n; i++ )
