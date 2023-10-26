@@ -20,65 +20,36 @@ static const zf_logger zf_log_cplane_trace(ZF_LC_CPLANE, ZF_LL_TRACE);
 #define zf_log_cplane_trace(...) do{}while(0)
 #endif
 
-static void __zf_path_pin_zock_hash(struct zf_stack* st, struct zf_tx* tx)
-{
-  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
-  /* The ports fields of the UDP and TCP header structs coincide, so we're
-   * OK to use ethipudphdr regardless */
-  struct ethipudphdr* hdr = &tx->pkt.udp_novlanhdr;
-  struct zf_path* path = &tx->path;
-  cicp_hash_state hs = {0,};
-  ci_hwport_id_t id;
-
-  /* We rely on callers to handle the case where we have no tx_hwports
-   * available.  This function will just select a nic amongst those that
-   * we have.
-   */
-  zf_assert(st->bond_state.tx_hwports);
-
-  if( tx->path.vlan != ZF_NO_VLAN ) {
-    struct ethvlanipudphdr* vlan_hdr = &tx->pkt.udp_vlanhdr;
-    hdr->eth = vlan_hdr->eth;
-    hdr->ip = vlan_hdr->ip;
-    hdr->udp = vlan_hdr->udp;
-  }
-
-  /* This is a declaration that the address is for a TCP/UDP flow, but this is
-   * without prejudice to the hashing mode, which is selected by
-   * [st->encap_type]. */
-  hs.flags |= CICP_HASH_STATE_FLAGS_IS_IP;
-  hs.flags |= CICP_HASH_STATE_FLAGS_IS_TCP_UDP;
-  memcpy(&hs.dst_mac, hdr->eth.h_dest, ETH_ALEN);
-  memcpy(&hs.src_mac, hdr->eth.h_source, ETH_ALEN);
-  hs.src_addr_be32 = hdr->ip.saddr;
-  hs.dst_addr_be32 = hdr->ip.daddr;
-  hs.src_port_be16 = hdr->udp.source;
-  hs.dst_port_be16 = hdr->udp.dest;
-
-  id = oo_cp_hwport_bond_get(st->encap_type, st->bond_state.tx_hwports, &hs);
-  path->nicno = sti->hwport_to_nicno[id];
-}
-
 ZF_COLD void zf_path_pin_zock(struct zf_stack* st, struct zf_tx* tx)
 {
   struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
 
-  memcpy(zf_tx_ethhdr(tx)->h_source, sti->sti_src_mac, ETH_ALEN);
-
   if( st->encap_type & CICP_LLAP_TYPE_BOND ) {
-    if( st->encap_type & CICP_LLAP_TYPE_USES_HASH ) {
-      __zf_path_pin_zock_hash(st, tx);
+    ef_cp_route_verinfo verinfo = EF_CP_ROUTE_VERINFO_INIT;
+    ef_cp_fwd_meta meta = {
+      .ifindex = sti->sti_ifindex,
+      .iif_ifindex = -1,
+    };
+    iphdr* ip = zf_tx_iphdr(tx);
+    size_t prefix_space = (char*)ip - (char*)&tx->pkt;
+    int64_t rc = zf_state.cp.resolve(zf_state.cp_handle, ip, &prefix_space,
+                            &meta, &verinfo,
+                            EF_CP_RESOLVE_F_BIND_SRC | EF_CP_RESOLVE_F_NO_ARP);
+    if( rc < 0 ) {
+      /* Should only happen if something dramatic has happened, e.g. our NIC
+       * has gone down */
+      zf_log_cplane_err(st, "Socket pin failed to get a route: %s\n",
+                        strerror(-rc));
+      tx->path.nicno = 0;
+      return;
     }
-    else {
-      cicp_hwport_mask_t hwports = st->bond_state.tx_hwports;
 
-      /* Not hashing -> should have exactly one tx hwport */
-      zf_assert(CI_IS_POW2(hwports));
-      tx->path.nicno = sti->hwport_to_nicno[cp_hwport_mask_first(hwports)];
-    }
+    tx->path.nicno = (zf_stack_res_nic*)meta.intf_cookie - &sti->nic[0];
   }
   else {
-    /* In non-bond modes we only support one nic currently */
+    /* Optimisation only: In non-bond modes we only support one nic currently,
+     * so we can skip the resolve */
+    memcpy(zf_tx_ethhdr(tx)->h_source, sti->sti_src_mac, ETH_ALEN);
     tx->path.nicno = 0;
   }
 }
