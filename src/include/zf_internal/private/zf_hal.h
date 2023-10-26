@@ -24,8 +24,6 @@
 #include <etherfabric/capabilities.h>
 
 /* Control plane headers. */
-#include <cplane/cplane.h>
-#include <cplane/create.h>
 #include <zf_internal/cplane.h>
 
 /* dshm */

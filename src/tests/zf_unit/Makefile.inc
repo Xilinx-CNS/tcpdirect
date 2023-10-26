@@ -43,13 +43,12 @@ UT_ALL := $(sort \
 
 
 UT_OBJS := $(UT_ALL:%=$(OBJ_CURRENT)/%.o)
-$(UT_OBJS): $(CP_INTF_VER_HDR) $(ZF_SHARED_LIB_LINK)
+$(UT_OBJS): $(ZF_SHARED_LIB_LINK)
 $(UT_OBJS): ZF_CFLAGS_COMPONENT := \
   $(ZF_CFLAGS_COMMON) \
   $(filter-out -fno-exceptions -fno-threadsafe-statics,$(ZF_CXXFLAGS_COMMON)) \
   -I$(ONLOAD_TREE)/src/include \
-  -I$(SRC_CURRENT) \
-  $(CP_INTF_VER_CFLAGS)
+  -I$(SRC_CURRENT)
 
 
 # zfquiesce_waittw and zfquiesce_nowaittw are built from the same source file
