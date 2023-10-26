@@ -4,11 +4,16 @@
 #define __ZF_BOND_TYPES_H__
 
 #include <cplane/cplane.h>
+#include <cplane/api.h>
 
 struct zf_bond_state {
   /* The version of the LLAP table we pulled our information from. This is how
    * we track bond changes. */
-  cp_version_t llap_version;
+  ef_cp_intf_verinfo intf_version;
+
+  /* Currently-up ifindex list, so we can detect when it's changed  */
+  int ifindices[ZF_MAX_NICS];
+  int ifindices_n;
 
   /* For LACP this will be a bitset of interfaces over which we should transmit
    * according to a hash policy. Otherwise, exactly one bit should be set. */
