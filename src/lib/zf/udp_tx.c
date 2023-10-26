@@ -56,6 +56,9 @@ int zfut_alloc(struct zfut** us_out,
   if( laddr->sin_port == 0 )
     return -EINVAL;
 
+  if( (attr->udp_ttl <= 0) || (attr->udp_ttl > 255) )
+    return -EINVAL;
+
   int rc = zf_stack_alloc_udp_tx(st, &udp_tx);
   if( rc < 0 )
     return rc;
@@ -82,8 +85,8 @@ int zfut_alloc(struct zfut** us_out,
   ip->protocol = IPPROTO_UDP;
   ip->version = IPVERSION;
   ip->ihl = 5;
-  ip->ttl = 64;
-
+  ip->ttl = attr->udp_ttl;
+  
   udphdr* udp = zf_tx_udphdr(tx);
   udp->source = laddr->sin_port;
   udp->dest = raddr->sin_port;
