@@ -5,7 +5,8 @@
 #include <zf_internal/zf_stack.h>
 #include <zf_internal/zf_stack_impl.h>
 
-#include <cplane/cplane.h>
+#include <cplane/api.h>
+#include <iterator>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -199,37 +200,23 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
 
 int zf_cplane_get_iface_info(int ifindex, zf_if_info* info_out)
 {
-  struct cp_mibs* mib;
-  cicp_rowid_t id;
-  cp_version_t version;
-  int rc = 0;
+  ef_cp_intf intf;
+  int rc = zf_state.cp.get_intf(zf_state.cp_handle, ifindex, &intf, 0);
+  if( rc < 0 )
+    return rc;
 
-  CP_VERLOCK_START(version, mib, &zf_state.cplane_handle);
+  memcpy(&info_out->mac_addr, intf.mac, sizeof(info_out->mac_addr));
+  info_out->ifindex = intf.ifindex;
+  strncpy(info_out->name, intf.name, sizeof(info_out->name));
+  info_out->encap.type = intf.encap;
 
-  id = cp_llap_find_row(mib, ifindex);
-
-  if( id != CICP_ROWID_BAD ) {
-    const cicp_llap_row_t* row = &mib->llap[id];
-    memcpy(&info_out->mac_addr, &row->mac, sizeof(info_out->mac_addr));
-    if( (row->encap.type & (CICP_LLAP_TYPE_VLAN | CICP_LLAP_TYPE_MACVLAN)) )
-      info_out->ifindex = row->encap.link_ifindex;
-    else
-      info_out->ifindex = ifindex;
-    /* The [rx_hwports] member of the LLAP row specifies all hwports included
-     * in the bond, and these are precisely the hwports on which we want to
-     * create VIs for the ZF stack. */
-    info_out->rx_hwports = row->rx_hwports;
-    info_out->tx_hwports = row->tx_hwports;
-    strncpy(info_out->name, row->name, sizeof(info_out->name));
-    info_out->encap = row->encap;
-  }
-  else {
-    rc = -ENOENT;
-  }
-
-  CP_VERLOCK_STOP(version, mib);
-
-  return rc;
+  rc = zf_state.cp.get_lower_intfs(zf_state.cp_handle, ifindex,
+                    info_out->hw_ifindices, std::size(info_out->hw_ifindices),
+                    EF_CP_GET_INTFS_F_MOST_DERIVED | EF_CP_GET_INTFS_F_NATIVE);
+  if( rc < 0 )
+    return rc;
+  info_out->hw_ifindices_n = std::min<int>(rc, std::size(info_out->hw_ifindices));
+  return 0;
 }
 
 
