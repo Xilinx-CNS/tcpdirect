@@ -20,46 +20,6 @@ static const zf_logger zf_log_cplane_trace(ZF_LC_CPLANE, ZF_LL_TRACE);
 #define zf_log_cplane_trace(...) do{}while(0)
 #endif
 
-static inline void zf_init_mcast_mac(uint32_t dst_be32, unsigned char* out_mac)
-{
-  uint32_t dst = ntohl(dst_be32);
-
-  zf_assert(out_mac);
-
-  out_mac[0] = 1;
-  out_mac[1] = 0;
-  out_mac[2] = 0x5e;
-  out_mac[3] = (dst >> 16) & 0x7f;
-  out_mac[4] = (dst >> 8) & 0xff;
-  out_mac[5] = dst & 0xff;
-}
-
-static inline const cicp_llap_row_t* find_llap(struct cp_mibs* mib, int ifindex)
-{
-  cicp_rowid_t id = cp_llap_find_row(mib, ifindex);
-  if( id == CICP_ROWID_BAD )
-    return NULL;
-  else
-    return &mib->llap[id];
-}
-
-static inline const cicp_ipif_row_t* find_ipif(struct cp_mibs* mib, int ifindex)
-{
-  cicp_rowid_t id = cp_ipif_any_row_by_ifindex(mib, ifindex);
-  if( id == CICP_ROWID_BAD )
-    return NULL;
-  else
-    return &mib->ipif[id];
-}
-
-static inline uint16_t get_vlan(const cicp_encap_t* encap)
-{
-  if( encap->type & CICP_LLAP_TYPE_VLAN )
-    return encap->vlan_id;
-  else
-    return ZF_NO_VLAN;
-}
-
 static void __zf_path_pin_zock_hash(struct zf_stack* st, struct zf_tx* tx)
 {
   struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
@@ -123,38 +83,6 @@ ZF_COLD void zf_path_pin_zock(struct zf_stack* st, struct zf_tx* tx)
   }
 }
 
-static zf_path_status
-__zf_cplane_get_path_mcast(struct zf_stack* st, struct zf_path* path,
-                           bool wait)
-{
-  struct cp_mibs* mib;
-  cp_version_t version;
-  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
-  int stack_ifindex = sti->sti_ifindex;
-  const cicp_llap_row_t* stack_if;
-  const cicp_ipif_row_t* ipif;
-
-  CP_VERLOCK_START(version, mib, &zf_state.cplane_handle);
-
-  path->rc = ZF_PATH_NOROUTE;
-  stack_if = find_llap(mib, stack_ifindex);
-  /* Interface found - might have been not found during verlock change */
-  if( stack_if ) {
-    ipif = find_ipif(mib, stack_ifindex);
-    /* Interface has address */
-    if( ipif ) {
-      path->mtu = stack_if->mtu;
-      path->src = ipif->net_ip;
-      path->vlan = get_vlan(&stack_if->encap);
-      zf_init_mcast_mac(path->dst, path->mac);
-      path->rc = ZF_PATH_OK;
-    }
-  }
-  CP_VERLOCK_STOP(version, mib);
-
-  return path->rc;
-}
-
 /** \brief Find destination MAC address for the given IP address.
  *
  * \param stack
@@ -183,7 +111,6 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
   int64_t time_limit_us;
   int64_t time_used_us = 0;
   struct timespec start;
-  bool is_multi = CI_IP_IS_MULTICAST(path->dst);
   size_t prefix_space;
   ethvlanipudphdr pkt = {
     .ip = {
@@ -198,9 +125,6 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
     .ifindex = sti->sti_ifindex,
     .iif_ifindex = -1,
   };
-
-  if( is_multi )
-    return __zf_cplane_get_path_mcast(st, path, wait);
 
   zf_log_cplane_trace(st, "Get route: from " CI_IP_PRINTF_FORMAT
                       " to " CI_IP_PRINTF_FORMAT " iif %d\n",
@@ -340,20 +264,7 @@ int zf_cplane_get_iface_info(int ifindex, zf_if_info* info_out)
 
 int zf_cplane_get_ifindex(const char* interface)
 {
-  struct cp_mibs* mib;
-  cicp_rowid_t id;
-  cp_version_t version;
-  int rc;
-
-  CP_VERLOCK_START(version, mib, &zf_state.cplane_handle);
-
-  id = cp_llap_by_ifname(mib, interface);
-  if( id != CICP_ROWID_BAD )
-    rc = mib->llap[id].ifindex;
-  else
-    rc = -ENODEV;
-
-  CP_VERLOCK_STOP(version, mib);
-
-  return rc;
+  ef_cp_intf intf;
+  int rc = zf_state.cp.get_intf_by_name(zf_state.cp_handle, interface, &intf, 0);
+  return rc < 0 ? rc : intf.ifindex;
 }
