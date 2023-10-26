@@ -68,4 +68,17 @@ extern ZF_COLD void zf_init_tx_state(struct zf_stack* stack, struct zf_tx* tx);
 extern ZF_COLD void zf_init_tx_ethhdr(struct zf_stack* stack, struct zf_tx* tx);
 extern ZF_COLD void zf_tx_dump(struct zf_tx* tx, int proto);
 
+static inline bool
+is_multicast(uint32_t addr_be)
+{
+  return (addr_be & htonl(0xf0000000)) == htonl(0xe0000000);
+}
+
+static inline bool
+is_multicast(const struct sockaddr_in* laddr)
+{
+  return is_multicast(laddr->sin_addr.s_addr);
+}
+
+
 #endif

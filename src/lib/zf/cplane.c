@@ -25,7 +25,7 @@ ZF_COLD void zf_path_pin_zock(struct zf_stack* st, struct zf_tx* tx)
 {
   struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
 
-  if( st->encap_type & CICP_LLAP_TYPE_BOND ) {
+  if( st->encap_type & EF_CP_ENCAP_F_BOND ) {
     ef_cp_route_verinfo verinfo = EF_CP_ROUTE_VERINFO_INIT;
     ef_cp_fwd_meta meta = {
       .ifindex = sti->sti_ifindex,
@@ -89,7 +89,7 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
       .ihl = sizeof(iphdr) / 4,
       .version = 4,
       .protocol = IPPROTO_UDP,   /* doesn't have to be correct */
-      .saddr = !CI_IP_IS_MULTICAST(path->src) ? path->src : 0,
+      .saddr = !is_multicast(path->src) ? path->src : 0,
       .daddr = path->dst,
     },
   };
@@ -208,7 +208,8 @@ int zf_cplane_get_iface_info(int ifindex, zf_if_info* info_out)
   memcpy(&info_out->mac_addr, intf.mac, sizeof(info_out->mac_addr));
   info_out->ifindex = intf.ifindex;
   strncpy(info_out->name, intf.name, sizeof(info_out->name));
-  info_out->encap.type = intf.encap;
+  info_out->encap = intf.encap;
+  info_out->vlan_id = intf.encap_data[0];
 
   rc = zf_state.cp.get_lower_intfs(zf_state.cp_handle, ifindex,
                     info_out->hw_ifindices, std::size(info_out->hw_ifindices),

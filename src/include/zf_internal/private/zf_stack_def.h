@@ -78,7 +78,7 @@ struct zf_stack {
   uint8_t next_poll_nic;
 
   /* Needed to determine whether we are running on a bonded interface */
-  cicp_llap_type_t encap_type;
+  uint32_t encap_type;
 
   /* LLAP version and hwports */
   struct zf_bond_state bond_state;
@@ -214,7 +214,7 @@ struct zf_stack_impl {
   char sti_if_name[IF_NAMESIZE];
   int sti_ifindex;
   uint16_t sti_vlan_id;
-  ci_mac_addr_t sti_src_mac;
+  uint8_t sti_src_mac[ETH_ALEN];
 
   struct zf_pool_res pool_res;
 

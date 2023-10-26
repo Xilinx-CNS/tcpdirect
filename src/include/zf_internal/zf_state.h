@@ -3,7 +3,6 @@
 #ifndef __ZF_STATE_H__
 #define __ZF_STATE_H__
 
-#include <cplane/cplane.h>
 #include <cplane/api.h>
 
 #define FOR_EACH_EF_CP_FUNCTION(OP) \
@@ -18,8 +17,6 @@
     OP(resolve)
 
 struct zf_state {
-  int cplane_fd;
-  struct oo_cplane_handle cplane_handle;
   struct ef_cp_handle* cp_handle;
   struct {
 #define CP_FUNC_DEFINE_FUNC_PTR(x)  decltype(&ef_cp_##x) x;

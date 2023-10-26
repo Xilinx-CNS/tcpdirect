@@ -10,10 +10,7 @@ $(TOOL_OBJS): ZF_CFLAGS_COMPONENT := \
   $(ZF_CFLAGS_COMMON) \
   -I$(ONLOAD_TREE)/src/include \
   -g \
-  $(ZF_CXXFLAGS_COMMON) \
-  $(CP_INTF_VER_CFLAGS)
-
-$(TOOL_OBJS): $(CP_INTF_VER_HDR)
+  $(ZF_CXXFLAGS_COMMON)
 
 $(TOOL_BINS): $(BIN_ROOT)/% : $(OBJ_CURRENT)/%.o $(ZF_STATIC_LIB)
 	@mkdir -p $(dir $@)

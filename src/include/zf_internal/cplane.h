@@ -8,9 +8,6 @@
 #include <arpa/inet.h>
 #include <net/if.h>  /* For IF_NAMESIZE */
 
-#include <cplane/cplane.h>
-#include <cplane/create.h>
-
 #include <zf_internal/zf_log.h>
 #include <zf_internal/utils.h>
 #include <zf_internal/stack_params.h>
@@ -50,7 +47,8 @@ struct zf_if_info {
   int ifindex;
   char name[IF_NAMESIZE];
   ci_uint8 mac_addr[6];
-  cicp_encap_t encap;
+  uint32_t encap;
+  uint16_t vlan_id;
 };
 
 extern int zf_cplane_get_iface_info(int ifindex, zf_if_info* info_out);

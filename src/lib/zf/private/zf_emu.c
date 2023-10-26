@@ -1850,15 +1850,15 @@ zf_emu_intf_add(const char* ifname, cicp_hwport_mask_t rx_hwports,
   else
     memcpy(llap->mac, dummy_mac, sizeof(dummy_mac));
   if( vlan_id > 0 ) {
-    llap->encap.type = CICP_LLAP_TYPE_VLAN;
+    llap->encap.type = EF_CP_ENCAP_F_VLAN;
     llap->encap.vlan_id = vlan_id;
   }
   else if( ! CI_IS_POW2(rx_hwports) ) {
-    llap->encap.type = CICP_LLAP_TYPE_BOND | hash_policy;
+    llap->encap.type = EF_CP_ENCAP_F_BOND | hash_policy;
     llap->encap.vlan_id = 0;
   }
   else {
-    llap->encap.type = CICP_LLAP_TYPE_NONE;
+    llap->encap.type = 0;
     llap->encap.vlan_id = 0;
   }
   llap->rx_hwports = rx_hwports;

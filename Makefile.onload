@@ -24,20 +24,13 @@ ONLOAD_UL_ARCH := $(shell PATH=$(PATH) mmaketool --userbuild_base)
 ONLOAD_UL_BUILD_NAME := $(shell PATH=$(PATH) mmaketool --userbuild)$(ZF_DEVEL_BUILD_POSTFIX)
 ONLOAD_UL_BUILD_DIR := $(ONLOAD_BUILD_BASE)/$(ONLOAD_UL_BUILD_NAME)
 
-CP_INTF_VER_HDR := $(ONLOAD_UL_BUILD_DIR)/cp_intf_ver.h
-CP_INTF_VER_CFLAGS := -include $(CP_INTF_VER_HDR)
-
 COMPAT_HDR  := $(ONLOAD_UL_BUILD_DIR)/include/libc_compat.h
-CPLANE_LIB  := $(ONLOAD_UL_BUILD_DIR)/lib/cplane/libcplane0.a
 CITOOLS_LIB := $(ONLOAD_UL_BUILD_DIR)/lib/citools/libcitools1.a
 CIUL_LIB    := $(ONLOAD_UL_BUILD_DIR)/lib/ciul/libciul1.a
 
 $(ONLOAD_UL_BUILD_DIR):
 	@mkdir -p $(dir $@)
 	mmakebuildtree -b $(ONLOAD_BUILD_BASE) -d $(ONLOAD_UL_BUILD_NAME) $(ONLOAD_UL_ARCH)
-
-$(CP_INTF_VER_HDR): $(ONLOAD_UL_BUILD_DIR)
-	$(MAKE) -C $(ONLOAD_UL_BUILD_DIR) $(CP_INTF_VER_HDR)
 
 ONLOAD_VERSION_HDR := $(ONLOAD_UL_BUILD_DIR)/lib/ciul/onload_version.h
 
@@ -50,10 +43,9 @@ build_dir: $(ONLOAD_UL_BUILD_DIR)
 
 # Use .PHONY 'build_dir' target as dependency for Onload libs to rebuild
 # them every time.
-$(COMPAT_HDR) $(CPLANE_LIB) $(CITOOLS_LIB) $(CIUL_LIB): build_dir
+$(COMPAT_HDR) $(CITOOLS_LIB) $(CIUL_LIB): build_dir
 	$(MAKE) -C $(dir $@) $(ONLOAD_CFLAGS)
 
-$(CPLANE_LIB): $(CP_INTF_VER_HDR) $(ONLOAD_VERSION_HDR) $(CITOOLS_LIB)
 $(CIUL_LIB): $(COMPAT_HDR)
 
 clean_onload:

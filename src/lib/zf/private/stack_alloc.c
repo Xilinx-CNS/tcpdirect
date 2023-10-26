@@ -819,10 +819,10 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
     goto fail2;
   }
 
-  st->encap_type = if_cplane_info.encap.type;
+  st->encap_type = if_cplane_info.encap;
   sti->sti_ifindex = ifindex;
-  if( st->encap_type & CICP_LLAP_TYPE_VLAN )
-    sti->sti_vlan_id = if_cplane_info.encap.vlan_id;
+  if( st->encap_type & EF_CP_ENCAP_F_VLAN )
+    sti->sti_vlan_id = if_cplane_info.vlan_id;
   else
     sti->sti_vlan_id = ZF_NO_VLAN;
   memcpy(sti->sti_src_mac, if_cplane_info.mac_addr, ETH_ALEN);
@@ -836,7 +836,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
     goto fail2;
   }
 
-  if( st->encap_type & CICP_LLAP_TYPE_BOND ) {
+  if( st->encap_type & EF_CP_ENCAP_F_BOND ) {
     rc = zf_stack_init_bond_state(st, &if_cplane_info);
     if( rc < 0 ) {
       zf_log_stack_err(st, "Unable to query bond details: %s.\n", strerror(-rc));

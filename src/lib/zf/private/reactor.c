@@ -472,7 +472,7 @@ __zf_reactor_perform(struct zf_stack* st, unsigned spin_cnt)
   }
 
   /* Check for LLAP staleness and pull any bond changes if necessary */
-  if( st->encap_type & CICP_LLAP_TYPE_BOND )
+  if( st->encap_type & EF_CP_ENCAP_F_BOND )
     if(ZF_UNLIKELY( zf_bond_stale(st) ))
       zf_bond_update(st);
 
