@@ -26,6 +26,7 @@
 #include <zf_internal/muxer.h>
 #include <zf_internal/zf_tcp.h>
 #include <zf_internal/zf_alts.h>
+#include <zf_internal/bond.h>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -730,24 +731,6 @@ static int zf_stack_init_nic_pool(struct zf_stack_impl* sti,
   return rc;
 }
 
-void zf_stack_init_bond_state(struct zf_stack* st, struct zf_if_info* ifinfo)
-{
-  /* rx_hwports cannot change because we do not support addition of slaves */
-  st->bond_state.rx_hwports = ifinfo->rx_hwports;
-  zf_assert(ifinfo->rx_hwports);
-
-  /* If the control plane has reported any TX hwports, remember them.  If not,
-   * choose one arbitrarily: we don't support a no-TX-hwport state internally,
-   * but we do promise not to crash if there are no TX hwports reported.  In
-   * any case, the TX hwports will be updated when the LLAP version becomes
-   * stale. */
-  if( ifinfo->tx_hwports != 0 )
-    st->bond_state.tx_hwports = ifinfo->tx_hwports;
-  else
-    st->bond_state.tx_hwports =
-      1ull << cp_hwport_mask_first(ifinfo->rx_hwports);
-}
-
 
 #ifndef ZF_DEVEL
 static
@@ -785,6 +768,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
 
   memset(sti, 0, sizeof(*sti));
   zf_stack_init_state(sti, attr);
+  strncpy(sti->sti_if_name, attr->interface, IF_NAMESIZE - 1);
 
   st = &sti->st;
 
@@ -862,8 +846,13 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
     goto fail2;
   }
 
-  if( st->encap_type & CICP_LLAP_TYPE_BOND )
-    zf_stack_init_bond_state(st, &if_cplane_info);
+  if( st->encap_type & CICP_LLAP_TYPE_BOND ) {
+    rc = zf_stack_init_bond_state(st, &if_cplane_info);
+    if( rc < 0 ) {
+      zf_log_stack_err(st, "Unable to query bond details: %s.\n", strerror(-rc));
+      goto fail2;
+    }
+  }
 
   /* If we have more than one hwport, some features are disallowed as a matter
    * of policy. */
@@ -952,7 +941,6 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
     strncpy(st->st_name, attr->name, sizeof(st->st_name));
   else
     sprintf(st->st_name, "%s/%03x", attr->interface, st->nic[0].vi.vi_i);
-  strncpy(sti->sti_if_name, attr->interface, IF_NAMESIZE - 1);
 
   *stack_out = st;
   return 0;
