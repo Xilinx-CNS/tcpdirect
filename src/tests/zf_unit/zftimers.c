@@ -14,6 +14,7 @@
 #include <zf_internal/timers.h>
 #include <zf_internal/timekeeping.h>
 #include "../tap/tap.h"
+#include <math.h>
 
 
 zf_wheel wheel;
@@ -71,9 +72,9 @@ int main(int argc, char* argv[])
   zf_timekeeping timek;
   zf_timekeeping_init(&timek, 1);
   /* bit silly but why since we have got this already */
-  int base = timek.frcs_in_tick;
+  double base = timek.frcs_in_ms / 1000.;
   for( unsigned i = 0; i < base * ZF_WHEEL_MAX_TICKS; ++i ) {
-    int a = i / base;
+    int a = (int)round(i / base);
     int b = zf_timekeeping_frc2tick(&timek, i, 0);
     /* Tolerate out-by-one in each direction due to arithmetic errors */
     int f = a != b && b != a - 1 && b != a + 1;
@@ -84,7 +85,7 @@ int main(int argc, char* argv[])
   cmp_ok(wrong, "==", 0, "Problem translating time %d", wrong);
   wrong = 0;
   for( unsigned i = 0; i < base * ZF_WHEEL_MAX_TICKS; ++i ) {
-    int a = (i + base - 1) / base;
+    int a = (int)ceil(i  / base);
     int b = zf_timekeeping_frc2tick(&timek, i, 1);
     /* Tolerate out-by-one plus one due to arithmetic errors and rounding up for
      * not_sooner */
