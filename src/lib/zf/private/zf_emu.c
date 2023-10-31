@@ -10,8 +10,10 @@
 #include <zf_internal/checksum.h>
 #include <etherfabric/checksum.h>
 #include <zf_internal/zf_stack.h>
+#include <zf_internal/zf_state.h>
 #include <zf_internal/private/zf_emu.h>
 #include <etherfabric/internal/efct_uk_api.h>
+#include <algorithm>
 
 
 #include "zf_emu_superbuf.h"
@@ -142,7 +144,6 @@ static struct hal_ops_s real_hal_ops = {
   ef_vi_get_mac,
   ef_vi_filter_add,
   ef_vi_filter_del,
-  oo_cp_create,
   __zf_cplane_get_path,
   oo_fd_open,
   oo_fd_close,
@@ -385,6 +386,11 @@ typedef struct vfifo_queue vfifo_queue;
 #endif
 
 
+struct emu_intf {
+  ef_cp_intf info;
+  int hw_ifindices[emu_state::MAX_VIS];
+};
+
 /* This structure describes all of the shared state. */
 struct emu_environment {
   bool shm_needs_unlinked;
@@ -394,13 +400,9 @@ struct emu_environment {
    * out by the emulator, but we mock up enough cplane state to allow the real
    * cplane implementation to resolve interfaces to ifindices and hwports. */
   struct emu_cplane {
-    cp_tables_dim    dim;
-    cp_version_t     version;
-    cp_version_t     llap_version;
-    static const int LLAP_TABLE_SIZE = 32;
-    cicp_llap_row_t  llap[LLAP_TABLE_SIZE];
-    cicp_rowid_t     llap_free_rowid;
-    struct cp_hwport_row hwport[LLAP_TABLE_SIZE];
+    emu_intf intfs[emu_state::MAX_VIS];
+    int num_intfs;
+    unsigned version;
   } cplane_mibs;
 
   /* points to peer VI - an RX VI if RX and TX VIs are separate */
@@ -1310,6 +1312,7 @@ static void zf_emu_update_tsync(emu_environment* env)
     if( ! tx_evi->alloced )
       continue;
 
+    ZF_TEST(env->peer_vis[vi_no] >= 0);
     emu_vi* rx_evi = &emu->vi[env->peer_vis[vi_no]];
     if( ! (rx_evi && rx_evi->alloced) )
       continue;
@@ -1528,6 +1531,7 @@ static void zf_emu_poll(emu_environment* env)
         }
       }
       else {
+        ZF_TEST(env->peer_vis[vi_no] >= 0);
         rx_evi = &emu->vi[env->peer_vis[vi_no]];
         if( rx_evi->alloced != 1 || rx_evi->rxq.mask == 0)
           continue;
@@ -1674,9 +1678,6 @@ static int emu_init(void)
 
   /* Zero out all shared emulator state. */
   memset((void *)env, 0, shm_len());
-
-  env->cplane_mibs.dim.llap_max = env->cplane_mibs.LLAP_TABLE_SIZE;
-  env->cplane_mibs.dim.hwport_max = env->cplane_mibs.LLAP_TABLE_SIZE;
 
   /* We need to unlink the shm at tear-down if and only if we're a back-to-back
    * master.  If and when a slave comes along, it will unlink the shm as soon
@@ -1825,93 +1826,209 @@ int emu_vi_number(int res, bool is_tx)
   return emu_conf.separate_tx ? 2 * res + is_tx : res;
 }
 
+static emu_intf* zf_emu_cp_intf_by_ifindex(int ifindex)
+{
+  emu_environment* env = emu_environment_get();
+  for( int i = 0; i < env->cplane_mibs.num_intfs; ++i )
+    if( env->cplane_mibs.intfs[i].info.ifindex == ifindex )
+      return &env->cplane_mibs.intfs[i];
+  return nullptr;
+}
+
+static emu_intf* zf_emu_cp_intf_by_name(const char* ifname)
+{
+  emu_environment* env = emu_environment_get();
+  for( int i = 0; i < env->cplane_mibs.num_intfs; ++i )
+    if( ! strcmp(env->cplane_mibs.intfs[i].info.name, ifname) )
+      return &env->cplane_mibs.intfs[i];
+  return nullptr;
+}
+
+static int zf_emu_ef_cp_init(struct ef_cp_handle **cp, unsigned flags)
+{
+  *cp = reinterpret_cast<ef_cp_handle*>(&emu_environment_get()->cplane_mibs);
+  return 0;
+}
+
+static void zf_emu_ef_cp_fini(struct ef_cp_handle *cp)
+{
+}
+
+static int
+zf_emu_ef_cp_get_lower_intfs(struct ef_cp_handle *cp, int child,
+                             int *ifindices, size_t n, unsigned flags)
+{
+  emu_intf* intf = zf_emu_cp_intf_by_ifindex(child);
+  if( ! intf )
+    return -ENOENT;
+  int got = 0;
+  for( auto ix : intf->hw_ifindices ) {
+    if( ix > 0 &&
+        (!(flags & EF_CP_GET_INTFS_F_UP_ONLY) ||
+         zf_emu_cp_intf_by_ifindex(ix)->info.flags & EF_CP_INTF_F_UP) ) {
+      if( n ) {
+        *ifindices++ = ix;
+        --n;
+      }
+      ++got;
+    }
+  }
+  return got;
+}
+
+static int
+zf_emu_ef_cp_get_intf(struct ef_cp_handle *cp, int ifindex,
+                      struct ef_cp_intf *intf, unsigned flags)
+{
+  emu_intf* mib_intf = zf_emu_cp_intf_by_ifindex(ifindex);
+  if( ! mib_intf )
+    return -ENOENT;
+  *intf = mib_intf->info;
+  return 0;
+}
+
+static int
+zf_emu_ef_cp_get_intf_by_name(struct ef_cp_handle *cp, const char* name,
+                              struct ef_cp_intf *intf, unsigned flags)
+{
+  emu_intf* mib_intf = zf_emu_cp_intf_by_name(name);
+  if( ! mib_intf )
+    return -ENOENT;
+  *intf = mib_intf->info;
+  return 0;
+}
+
+struct ef_cp_intf_verinfo
+zf_emu_ef_cp_intf_version_get(struct ef_cp_handle *cp)
+{
+  return {
+    .version = emu_environment_get()->cplane_mibs.version,
+  };
+}
+
+static bool
+zf_emu_ef_cp_intf_version_verify(struct ef_cp_handle *cp,
+                                 const struct ef_cp_intf_verinfo *ver)
+{
+  return emu_environment_get()->cplane_mibs.version == ver->version;
+}
+
+static int
+zf_emu_ef_cp_register_intf(struct ef_cp_handle *cp, int ifindex,
+                           void *user_cookie, unsigned flags)
+{
+  if( emu_intf* intf = zf_emu_cp_intf_by_ifindex(ifindex) ) {
+    intf->info.registered_cookie = user_cookie;
+    return 0;
+  }
+  return -ENOENT;
+}
+
+static int64_t
+zf_emu_ef_cp_resolve(struct ef_cp_handle *cp, void *ip_hdr,
+                     size_t *prefix_space, struct ef_cp_fwd_meta *meta,
+                     struct ef_cp_route_verinfo *ver, uint64_t flags)
+{
+  /* The HAL intercepts the 'full' resolve (__zf_cplane_get_path()) earlier
+   * than this, so all we need to return here is some bond balancing info */
+  emu_intf* intf = zf_emu_cp_intf_by_ifindex(meta->ifindex);
+  if( ! intf )
+    return -EADDRNOTAVAIL;
+  emu_intf* slaves[emu_state::MAX_VIS];
+  unsigned n_slaves = 0;
+  for( int ix : intf->hw_ifindices )
+    if( ix > 0 )
+      if( emu_intf* intf = zf_emu_cp_intf_by_ifindex(ix) )
+        if( intf->info.flags & EF_CP_INTF_F_UP )
+          slaves[n_slaves++] = intf;
+  if( n_slaves == 0 )
+    return -EADDRNOTAVAIL;
+  iphdr *ip = static_cast<iphdr*>(ip_hdr);
+  udphdr *udp = reinterpret_cast<udphdr*>(ip + 1);
+  /* wildly inaccurate hash: */
+  emu_intf* slave = slaves[(ip->daddr ^ ip->saddr ^
+                           udp->source ^ udp->dest) % n_slaves];
+  meta->intf_cookie = slave->info.registered_cookie;
+  *prefix_space = ETH_HLEN;
+  ethhdr* eth = (ethhdr*)((char*)ip_hdr - ETH_HLEN);
+  memcpy(eth->h_source, intf->info.mac, ETH_ALEN);
+  return 0;
+}
+
+static void
+resolve_peer_vis()
+{
+  /* We allow zf_emu_intf_add() to be called in arbitrary orders, meaning that
+   * earlier calls may have a peer_ifindex pointing to a VI which doesn't exist
+   * yet. To store that we use negative values in peer_vis, which this function
+   * then sorts out when it can. */
+  emu_environment* env = emu_environment_get();
+  for( auto &peer_vi : env->peer_vis ) {
+    if( peer_vi >= 0 )
+      continue;
+    if( emu_intf* intf = zf_emu_cp_intf_by_ifindex(-peer_vi) )
+      peer_vi = emu_vi_number(intf - env->cplane_mibs.intfs, false);
+  }
+}
+
 void
-zf_emu_intf_add(const char* ifname, cicp_hwport_mask_t rx_hwports,
-                cicp_hwport_mask_t tx_hwports, uint16_t vlan_id,
-                cicp_llap_type_t hash_policy, int peer_vi,
+zf_emu_intf_add(const char* ifname, int ifindex,
+                const int* hw_ifindices, size_t n_hw_ifindices, uint16_t vlan_id,
+                uint32_t encap, int peer_ifindex,
                 const ci_mac_addr_t mac)
 {
-  ci_hwport_id_t first_hwport = cp_hwport_mask_first(rx_hwports);
-  const ci_mac_addr_t dummy_mac = {0x00, 0x0f, 0x53, 0x00, 0x00, first_hwport};
+  const ci_mac_addr_t dummy_mac = {0x00, 0x0f, 0x53, 0x00, 0x00, (uint8_t)ifindex};
   emu_environment* env = emu_environment_get();
-  cicp_rowid_t rowid = env->cplane_mibs.llap_free_rowid++;
-  cicp_llap_row_t* llap = &env->cplane_mibs.llap[rowid];
-  struct cp_hwport_row* hwport_row = &env->cplane_mibs.hwport[rowid];
-
-  ZF_TEST(rowid < env->cplane_mibs.LLAP_TABLE_SIZE);
-
-  llap->ifindex = rowid + 1;
-  llap->encap.link_ifindex = llap->ifindex;
-  llap->mtu = emu_conf.mtu;
-  llap->flags = CP_LLAP_UP;
-  strcpy(llap->name, ifname);
-  if( mac )
-    memcpy(llap->mac, mac, sizeof(ci_mac_addr_t));
-  else
-    memcpy(llap->mac, dummy_mac, sizeof(dummy_mac));
-  if( vlan_id > 0 ) {
-    llap->encap.type = EF_CP_ENCAP_F_VLAN;
-    llap->encap.vlan_id = vlan_id;
-  }
-  else if( ! CI_IS_POW2(rx_hwports) ) {
-    llap->encap.type = EF_CP_ENCAP_F_BOND | hash_policy;
-    llap->encap.vlan_id = 0;
-  }
-  else {
-    llap->encap.type = 0;
-    llap->encap.vlan_id = 0;
-  }
-  llap->rx_hwports = rx_hwports;
-  llap->tx_hwports = tx_hwports;
-
-  hwport_row->ifindex = llap->ifindex;
-  hwport_row->flags |= CP_HWPORT_ROW_IN_USE;
+  int intf_i = env->cplane_mibs.num_intfs++;
+  if( vlan_id )
+    encap |= EF_CP_ENCAP_F_VLAN;
+  if( n_hw_ifindices > 1 )
+    encap |= EF_CP_ENCAP_F_BOND;
+  emu_intf intf = {
+    .info = {
+      .ifindex = ifindex,
+      .encap = encap,
+      .encap_data = {vlan_id},
+      .flags = EF_CP_INTF_F_UP,
+    },
+  };
+  memcpy(intf.info.mac, mac ? mac : dummy_mac, ETH_ALEN);
+  strncpy(intf.info.name, ifname, sizeof(intf.info.name));
+  for( size_t i = 0; i < std::size(intf.hw_ifindices); ++i )
+    intf.hw_ifindices[i] = i < n_hw_ifindices ? hw_ifindices[i] : -1;
+  env->cplane_mibs.intfs[intf_i] = std::move(intf);
 
   /* If this is not a bond, set the peer VI.  For the bonded case, the peers
    * are specified by the slaves themselves. */
-  if( CI_IS_POW2(rx_hwports) )
-    env->peer_vis[emu_vi_number(first_hwport, 1)] = emu_vi_number(peer_vi, 0);
+  if( ! (encap & EF_CP_ENCAP_F_BOND) )
+    env->peer_vis[intf_i] = -peer_ifindex;
   else
-    ZF_TEST(peer_vi < 0);
-}
-
-
-/* Fake up a MIB frame and use it to look up an interface, and also bump the
- * version so that the caller can modify the row. */
-static cicp_llap_row_t* cplane_intf_mod_start(const char* ifname)
-{
-  struct cp_mibs mib;
-  emu_environment* env = emu_environment_get();
-
-  mib.dim = &env->cplane_mibs.dim;
-  mib.llap = env->cplane_mibs.llap;
-  mib.version = &env->cplane_mibs.version;
-  mib.llap_version = &env->cplane_mibs.llap_version;
-
-  cicp_rowid_t rowid = cp_llap_by_ifname(&mib, ifname);
-  ZF_TEST(CICP_ROWID_IS_VALID(rowid));
-
-  /* Bump the version number so that the caller can make a modification that
-   * will be noticed by ZF. */
-  ++*mib.llap_version;
-
-  return &mib.llap[rowid];
+    ZF_TEST(peer_ifindex < 0);
+  ++env->cplane_mibs.version;
+  resolve_peer_vis();
 }
 
 
 void
-zf_emu_intf_set_tx_hwports(const char* ifname, cicp_hwport_mask_t tx_hwports)
+zf_emu_intf_set_intf_up(const char* ifname, bool up)
 {
-  cicp_llap_row_t* llap = cplane_intf_mod_start(ifname);
-  llap->tx_hwports = tx_hwports;
+  emu_intf* intf = zf_emu_cp_intf_by_name(ifname);
+  ZF_TEST(intf);
+  if( up )
+    intf->info.flags |= EF_CP_INTF_F_UP;
+  else
+    intf->info.flags &= ~EF_CP_INTF_F_UP;
+  ++emu_environment_get()->cplane_mibs.version;
 }
 
 
 void
 zf_emu_intf_set_mac(const char* ifname, ci_mac_addr_t mac)
 {
-  cicp_llap_row_t* llap = cplane_intf_mod_start(ifname);
-  memcpy(llap->mac, mac, sizeof(ci_mac_addr_t));
+  emu_intf* intf = zf_emu_cp_intf_by_name(ifname);
+  ZF_TEST(intf);
+  memcpy(intf->info.mac, mac, sizeof(ci_mac_addr_t));
+  ++emu_environment_get()->cplane_mibs.version;
 }
 
 
@@ -1919,10 +2036,8 @@ void
 zf_emu_remove_all_intfs(void)
 {
   emu_environment* env = emu_environment_get();
-
-  memset(&env->cplane_mibs, 0, sizeof(env->cplane_mibs));
-  env->cplane_mibs.dim.llap_max = env->cplane_mibs.LLAP_TABLE_SIZE;
-  env->cplane_mibs.dim.hwport_max = env->cplane_mibs.LLAP_TABLE_SIZE;
+  env->cplane_mibs.num_intfs = 0;
+  ++env->cplane_mibs.version;
 }
 
 
@@ -1960,16 +2075,16 @@ static void emu_add_default_interfaces(void)
 {
   if( emu_conf.loop ) {
     /* One interface, looped back to itself. */
-    zf_emu_intf_add(emu_conf.ifname, 1, 1, emu_conf.vlan, 0, 0, NULL);
+    zf_emu_intf_add(emu_conf.ifname, 1, {1}, emu_conf.vlan, 0, 1, NULL);
   }
   else if( emu_conf.tun ) {
     /* One interface, plugged into a TUN device. */
-    zf_emu_intf_add(emu_conf.ifname, 1, 1, 0, 0, -1, NULL);
+    zf_emu_intf_add(emu_conf.ifname, 1, {1}, 0, 0, -1, NULL);
   }
   else {
     /* Two interfaces, connected back-to-back. */
-    zf_emu_intf_add(ZF_EMU_B2B0, 1, 1, emu_conf.vlan, 0, 1, NULL);
-    zf_emu_intf_add(ZF_EMU_B2B1, 2, 2, emu_conf.vlan, 0, 0, NULL);
+    zf_emu_intf_add(ZF_EMU_B2B0, 1, {1}, emu_conf.vlan, 0, 2, NULL);
+    zf_emu_intf_add(ZF_EMU_B2B1, 2, {2}, emu_conf.vlan, 0, 1, NULL);
   }
 }
 
@@ -1996,7 +2111,7 @@ static void* emu_alloc_huge(size_t size)
 
     /* If the test has not specified interfaces of its own, add the default
      * interfaces according to the emulator mode. */
-    if( env->cplane_mibs.llap_free_rowid == 0 )
+    if( env->cplane_mibs.num_intfs == 0 )
       emu_add_default_interfaces();
 
     if( emu_client.driver_handle_count == 1 ) {
@@ -2061,7 +2176,7 @@ static int emu_ef_pd_alloc(ef_pd* pd, ef_driver_handle pd_dh,
   ZF_TRY(zf_cplane_get_iface_info(ifindex, &info));
 
   /* We should not be trying to create a VI on a bond-master. */
-  ZF_TEST(CI_IS_POW2(info.rx_hwports));
+  ZF_TEST(!(info.encap & EF_CP_ENCAP_F_BOND));
 
   memset(pd, 0, sizeof(*pd));
 
@@ -2072,7 +2187,9 @@ static int emu_ef_pd_alloc(ef_pd* pd, ef_driver_handle pd_dh,
 
   /* [pd_resource_id] encodes the VI number, which is itself a function of the
    * hwport as we have a single VI (or sometimes two VIs) per interface. */
-  pd->pd_resource_id = cp_hwport_mask_first(info.rx_hwports);
+  emu_intf* intf = zf_emu_cp_intf_by_ifindex(ifindex);
+  ZF_TEST(intf);
+  pd->pd_resource_id = intf - emu_environment_get()->cplane_mibs.intfs;
 
   return 0;
 }
@@ -2406,27 +2523,6 @@ emu_ef_vi_filter_del(ef_vi *vi, ef_driver_handle dh,
   (void) vi;
   (void) dh;
   (void) filter_cookie;
-  return 0;
-}
-
-
-static int
-emu_oo_cp_create(int fd, struct oo_cplane_handle* handle,
-                 enum cp_sync_mode mode, ci_uint32 flags)
-{
-  emu_environment* env = emu_environment_get();
-  unsigned i;
-
-  /* We use the same underlying tables for both mibs, as they never change
-   * concurrently with ZF calls. */
-  for( i = 0; i < sizeof(handle->mib) / sizeof(handle->mib[0]); ++i ) {
-    handle->mib[i].dim = &env->cplane_mibs.dim;
-    handle->mib[i].llap = env->cplane_mibs.llap;
-    handle->mib[i].version = &env->cplane_mibs.version;
-    handle->mib[i].llap_version = &env->cplane_mibs.llap_version;
-    handle->mib[i].hwport = env->cplane_mibs.hwport;
-  }
-
   return 0;
 }
 
@@ -2783,6 +2879,10 @@ int zf_hal_init(struct zf_attr* attr)
     for( int i = 0; i < OO_DSHM_CLASS_COUNT; ++i )
       ci_dllist_init(&emu_oo_dshm_state.buffers[i]);
     emu_oo_dshm_state.next_buffer_id = 0;
+
+    zf_state.efcp_so_handle = &zf_state;
+#define CP_FUNC_INIT_EMU_FUNC(x) zf_state.cp.x = zf_emu_ef_cp_##x;
+    FOR_EACH_EF_CP_FUNCTION(CP_FUNC_INIT_EMU_FUNC)
   }
   return 0;
 }
@@ -2903,7 +3003,6 @@ struct hal_ops_s emu_hal_ops = {
   emu_ef_vi_get_mac,
   emu_ef_vi_filter_add,
   emu_ef_vi_filter_del,
-  emu_oo_cp_create,
   emu_zf_cplane_get_path,
   emu_oo_fd_open,
   emu_oo_fd_close,

@@ -43,22 +43,24 @@ int zf_init(void)
   if( rc < 0 )
     goto fail;
 
-  zf_state.efcp_so_handle = dlopen("libefcp.so", RTLD_NOW);
   if( ! zf_state.efcp_so_handle ) {
-    zf_log_stack_err(NO_STACK, "%s: Failed to open ef_vi Control Plane: %s\n",
-                     __func__, dlerror());
-    goto fail;
-  }
+    zf_state.efcp_so_handle = dlopen("libefcp.so", RTLD_NOW);
+    if( ! zf_state.efcp_so_handle ) {
+      zf_log_stack_err(NO_STACK, "%s: Failed to open ef_vi Control Plane: %s\n",
+                      __func__, dlerror());
+      goto fail;
+    }
 
 #define CP_FUNC_INIT_FUNC_PTR(x) \
-  zf_state.cp.x = reinterpret_cast<decltype(zf_state.cp.x)>( \
-                                  dlsym(zf_state.efcp_so_handle, "ef_cp_" #x)); \
-  if( ! zf_state.cp.x ) { \
-    zf_log_stack_err(NO_STACK, "%s: Failed to link to ef_vi Control Plane: %s\n", \
-                     __func__, #x); \
-    goto fail1; \
+    zf_state.cp.x = reinterpret_cast<decltype(zf_state.cp.x)>( \
+                                    dlsym(zf_state.efcp_so_handle, "ef_cp_" #x)); \
+    if( ! zf_state.cp.x ) { \
+      zf_log_stack_err(NO_STACK, "%s: Failed to link to ef_vi Control Plane: %s\n", \
+                      __func__, #x); \
+      goto fail1; \
+    }
+    FOR_EACH_EF_CP_FUNCTION(CP_FUNC_INIT_FUNC_PTR)
   }
-  FOR_EACH_EF_CP_FUNCTION(CP_FUNC_INIT_FUNC_PTR)
 
   rc = zf_state.cp.init(&zf_state.cp_handle, 0);
   if( rc < 0 ) {

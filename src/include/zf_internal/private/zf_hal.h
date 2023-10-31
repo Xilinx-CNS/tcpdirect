@@ -87,7 +87,6 @@ struct hal_ops_s {
   ZFHAL_EF_FDECL(vi_get_mac);
   ZFHAL_EF_FDECL(vi_filter_add);
   ZFHAL_EF_FDECL(vi_filter_del);
-  ZFHAL_GEN_FDECL(oo_cp_create, cplane_handle);
   ZFHAL_GEN_FDECL(__zf_cplane_get_path, get_path);
   ZFHAL_GEN_FDECL(oo_fd_open, oo_fd_open_halop);
   ZFHAL_GEN_FDECL(oo_fd_close, oo_fd_close_halop);
@@ -129,8 +128,6 @@ extern struct hal_ops_s* hal_ops;
 #define ef_vi_get_mac hal_ops->vi_get_mac
 #define ef_vi_filter_add hal_ops->vi_filter_add
 #define ef_vi_filter_del hal_ops->vi_filter_del
-#undef oo_cp_create
-#define oo_cp_create hal_ops->cplane_handle
 #define oo_fd_open hal_ops->oo_fd_open_halop
 #define oo_fd_close hal_ops->oo_fd_close_halop
 #define oo_dshm_register hal_ops->shm_register
