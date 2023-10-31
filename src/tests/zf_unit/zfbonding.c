@@ -13,12 +13,15 @@
 #include "abstract_zocket_pair.h"
 
 
-/* hwports for the interfaces used by this test. */
-enum interface_hwports {
-  ETH0 = 0x1,
-  ETH1 = 0x2,
-  ETH2 = 0x4,
-  ETH3 = 0x8,
+/* ifindex for the interfaces used by this test. */
+enum interface_ifindex {
+  ETH0 = 1,
+  ETH1,
+  ETH2,
+  ETH3,
+  BOND0,
+  BOND1,
+  BOND2,
 };
 
 
@@ -335,7 +338,8 @@ static void test_sanity_ab(void)
 
   /* Failover: set active slave to eth3 and poll the stack to cause it to take
    * notice. */
-  zf_emu_intf_set_tx_hwports("bond1", ETH3);
+  zf_emu_intf_set_intf_up("eth2", false);
+  zf_emu_intf_set_intf_up("eth3", true);
   zf_reactor_perform(stack_bond1);
 
   /* Repeat the sending test from before the failover.  This time, the traffic
@@ -380,7 +384,8 @@ static void test_sanity_ab(void)
   ZF_TRY(zf_stack_free(stack_bond1));
 
   /* Restore the original active slave. */
-  zf_emu_intf_set_tx_hwports("bond1", ETH2);
+  zf_emu_intf_set_intf_up("eth2", true);
+  zf_emu_intf_set_intf_up("eth3", false);
 }
 
 
@@ -392,7 +397,7 @@ static void test_no_initial_tx_hwports(void)
   struct zf_stack* stack_bond1;
   struct zfut* tx;
 
-  zf_emu_intf_set_tx_hwports("bond1", 0);
+  zf_emu_intf_set_intf_up("eth2", false);
   ZF_TRY(zf_attr_set_str(attr, "interface", "bond1"));
   ZF_TRY(zf_stack_alloc(attr, &stack_bond1));
 
@@ -421,7 +426,7 @@ static void test_no_initial_tx_hwports(void)
   ZF_TRY(zf_stack_free(stack_bond1));
 
   /* Restore the original active slave. */
-  zf_emu_intf_set_tx_hwports("bond1", ETH2);
+  zf_emu_intf_set_intf_up("eth2", true);
 }
 
 
@@ -449,17 +454,18 @@ void init(void)
    * We also create a bond2 with no slaves.
    */
 
-  zf_emu_intf_add("eth0", ETH0, ETH0, 0, 0, 2, NULL);
-  zf_emu_intf_add("eth1", ETH1, ETH1, 0, 0, 3, NULL);
-  zf_emu_intf_add("eth2", ETH2, ETH2, 0, 0, 0, NULL);
-  zf_emu_intf_add("eth3", ETH3, ETH3, 0, 0, 1, NULL);
+  zf_emu_intf_add("eth0", ETH0, {ETH0}, 0, EF_CP_ENCAP_F_BOND_PORT, ETH2, NULL);
+  zf_emu_intf_add("eth1", ETH1, {ETH1}, 0, EF_CP_ENCAP_F_BOND_PORT, ETH3, NULL);
+  zf_emu_intf_add("eth2", ETH2, {ETH2}, 0, EF_CP_ENCAP_F_BOND_PORT, ETH0, NULL);
+  zf_emu_intf_add("eth3", ETH3, {ETH3}, 0, EF_CP_ENCAP_F_BOND_PORT, ETH1, NULL);
+  zf_emu_intf_set_intf_up("eth3", false);
 
   /* Create one LACP bond, with tx_hwports == rx_hwports, and one active-backup
    * bond, with a single TX hwport. */
-  zf_emu_intf_add("bond0", ETH0 | ETH1, ETH0 | ETH1, 0,
-                  CICP_LLAP_TYPE_XMIT_HASH_LAYER34, -1, NULL);
-  zf_emu_intf_add("bond1", ETH2 | ETH3, ETH2, 0, 0, -1, NULL);
-  zf_emu_intf_add("bond2", 0, 0, 0, 0, -1, NULL);
+  zf_emu_intf_add("bond0", BOND0, {ETH0, ETH1}, 0,
+                  EF_CP_ENCAP_F_BOND | CICP_LLAP_TYPE_XMIT_HASH_LAYER34, -1, NULL);
+  zf_emu_intf_add("bond1", BOND1, {ETH2, ETH3}, 0, EF_CP_ENCAP_F_BOND, -1, NULL);
+  zf_emu_intf_add("bond2", BOND2, {}, 0, EF_CP_ENCAP_F_BOND, -1, NULL);
 }
 
 

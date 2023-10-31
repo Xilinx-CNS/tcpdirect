@@ -6,6 +6,7 @@
 #include <zf_internal/tx.h>
 #include <zf_internal/attr.h>
 #include <zf_internal/zf_tcp_impl.h>
+#include <zf_internal/bond_types.h>
 #include <zf_internal/private/zf_hal.h>
 #include <zf_internal/private/zf_emu.h>
 
@@ -39,11 +40,12 @@ static int init(struct zf_stack** stack_out, struct zf_attr** attr_out)
    *      ---        ---
    */
 
-  zf_emu_intf_add("eth0", 1, 1, 0, 0, 0, NULL);
-  zf_emu_intf_add("eth1", 2, 2, 0, 0, 1, NULL);
+  zf_emu_intf_add("eth0", 1, {1}, 0, EF_CP_ENCAP_F_BOND_PORT, 1, NULL);
+  zf_emu_intf_add("eth1", 2, {2}, 0, EF_CP_ENCAP_F_BOND_PORT, 2, NULL);
 
   /* The bond is LACP, with tx_hwports == rx_hwports */
-  zf_emu_intf_add("bond0",  3, 3, 0, CICP_LLAP_TYPE_XMIT_HASH_LAYER34, -1,
+  zf_emu_intf_add("bond0", 3, {1,2}, 0,
+                  EF_CP_ENCAP_F_BOND | CICP_LLAP_TYPE_XMIT_HASH_LAYER34, -1,
                   NULL);
 
   ZF_TRY(zf_attr_set_str(*attr_out, "interface", "bond0"));

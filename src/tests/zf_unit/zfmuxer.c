@@ -52,8 +52,8 @@ static int init(struct zf_stack** stack_out, struct zf_attr** attr_out)
 
   /* This test creates two stacks, so we need two interfaces.  It doesn't pass
    * any traffic, though, so we don't care about the wiring. */
-  zf_emu_intf_add((*attr_out)->interface, 1, 1, 0, 0, 0, NULL);
-  zf_emu_intf_add(OTHER_INTERFACE, 2, 2, 0, 0, 0, NULL);
+  zf_emu_intf_add((*attr_out)->interface, 1, {1}, 0, 0, 1, NULL);
+  zf_emu_intf_add(OTHER_INTERFACE, 2, {2}, 0, 0, 2, NULL);
 
   rc = zf_stack_alloc(*attr_out, stack_out);
   if( rc != 0 ) {
