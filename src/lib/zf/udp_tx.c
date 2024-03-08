@@ -86,7 +86,7 @@ int zfut_alloc(struct zfut** us_out,
   ip->version = IPVERSION;
   ip->ihl = 5;
   ip->ttl = attr->udp_ttl;
-  
+
   udphdr* udp = zf_tx_udphdr(tx);
   udp->source = laddr->sin_port;
   udp->dest = raddr->sin_port;
