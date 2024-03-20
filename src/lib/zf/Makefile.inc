@@ -78,7 +78,7 @@ $(LIB_OBJS): $(CP_INTF_VER_HDR) $(ONLOAD_VERSION_HDR)
 
 $(ZF_SHARED_LIB): $(LIB_OBJS) $(LDEP)
 	@mkdir -p $(dir $@)
-	$(CLINK) -shared -fPIC $^ -e zf_print_version -Wl,-soname,$(ZF_SONAME) -o $@
+	$(CLINK) -shared -fPIC $^ -e zf_print_version -Wl,-soname,$(ZF_SONAME),--exclude-libs,libciul1.a -o $@
 
 $(ZF_SHARED_LIB_STRIPPED): $(ZF_SHARED_LIB)
 	@mkdir -p $(dir $@)
