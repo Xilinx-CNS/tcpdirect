@@ -2176,9 +2176,7 @@ static int emu_ef_vi_alloc_from_pd(ef_vi* vi, ef_driver_handle vi_dh,
     vi->vi_txq.ct_fifo_bytes = EFCT_TX_APERTURE;
 
     memset(&evi->rxq.shm, 0, sizeof(evi->rxq.shm));
-    efct_kbufs_init_internal(vi, &evi->rxq.shm,
-                             mock_ef_vi_efct_superbuf_refresh, 0,
-                             state->superbuf_mapping);
+    vi->efct_shm = &evi->rxq.shm;
 
     emu_environment* env = emu_environment_get();
     pthread_mutex_lock(&env->efct_edev_ops_mutex);
@@ -2211,6 +2209,8 @@ static int emu_ef_vi_alloc_from_pd(ef_vi* vi, ef_driver_handle vi_dh,
         env->state.donated_sbufs += evi->rxq.superbuf_n;
         evi->rxq.superbuf_size = 1 << 20;
         evi->rxq.superbuf_total_size = evi->rxq.superbuf_size * evi->rxq.superbuf_n;
+        vi->efct_rxq[0].superbuf = (char *)state->superbuf_mapping;
+        vi->efct_rxq[0].refresh_func = mock_ef_vi_efct_superbuf_refresh;
 
         evi->rxq.nic_efct.rxq = &env->state.rxq; 
         evi->rxq.efct_rxq = efhw_efct_rxq();
@@ -2228,7 +2228,7 @@ static int emu_ef_vi_alloc_from_pd(ef_vi* vi, ef_driver_handle vi_dh,
         /* wrapping big_buf_ptr */
         /* once buf is received, invalidate old data */
         // Account for the initial prefix metadata
-        evi->rxq.superbuf_offset = (char*)state->superbuf_mapping - (char*)env;
+        evi->rxq.superbuf_offset = (char*) vi->efct_rxq[0].superbuf - (char*)env;
 
         memset(&evi->rxq.shm_q[0], 0x00, sizeof(evi->rxq.shm_q[0]));
         /* hugepages given by capacity * pkt_size / hugepage_size*/
@@ -2241,7 +2241,7 @@ static int emu_ef_vi_alloc_from_pd(ef_vi* vi, ef_driver_handle vi_dh,
                       &evi->rxq.shm_q[0],
                       wakeup_instance,
                       &evi->rxq.efct_rxq);
-        evi->rxq.shm.active_qs = 1;
+        vi->efct_shm->active_qs = 1;
         for (unsigned int i = 0; i < 4; i++) {
           superbuf_begin(state, evi);
         }
