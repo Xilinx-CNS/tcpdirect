@@ -44,8 +44,12 @@ extern "C" {
 #include <ci/driver/efab/hardware/efct.h>
 #define X3_RXQ_N 16
 /* Removed from onload in ON-14692 */
+#ifndef DP_PARTIAL_TSTAMP_SUB_NANO_BITS
 #define DP_PARTIAL_TSTAMP_SUB_NANO_BITS EFAB_NIC_DP_DEFAULT(timestamp_subnano_bits)
+#endif
+#ifndef EFCT_TX_APERTURE
 #define EFCT_TX_APERTURE EFAB_NIC_DP_DEFAULT(tx_aperture_bytes)
+#endif
 
 #ifdef __cplusplus
 }
@@ -2148,20 +2152,6 @@ static int emu_ef_vi_alloc_from_pd(ef_vi* vi, ef_driver_handle vi_dh,
   vi->vi_txq.ids = evi->txq.ids;
   vi->io = (ef_vi_ioaddr_t) &evi->io;
   vi->vi_stats = &evi->stats;
-
-  if( vi->internal_ops.design_parameters ) {
-    int rc;
-    struct efab_nic_design_parameters dp = EFAB_NIC_DP_INITIALIZER;
-    dp.rx_superbuf_bytes = EFAB_NIC_DP_DEFAULT(rx_superbuf_bytes);
-    dp.rx_frame_offset = EFAB_NIC_DP_DEFAULT(rx_frame_offset);
-    dp.tx_aperture_bytes = EFCT_TX_APERTURE;
-    dp.tx_fifo_bytes = EFAB_NIC_DP_DEFAULT(tx_fifo_bytes);
-    dp.timestamp_subnano_bits = DP_PARTIAL_TSTAMP_SUB_NANO_BITS;
-    dp.unsol_credit_seq_mask = EFAB_NIC_DP_DEFAULT(unsol_credit_seq_mask);
-    rc = vi->internal_ops.design_parameters(vi, &dp);
-    if( rc < 0 )
-      return rc;
-  }
 
   ef_vi_init_state(vi);
   if ( evi->nic_type == NIC_TYPE_X3 ) {
