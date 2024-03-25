@@ -400,7 +400,6 @@ struct emu_environment {
     static const int LLAP_TABLE_SIZE = 32;
     cicp_llap_row_t  llap[LLAP_TABLE_SIZE];
     cicp_rowid_t     llap_free_rowid;
-    struct cp_hwport_row hwport[LLAP_TABLE_SIZE];
   } cplane_mibs;
 
   /* points to peer VI - an RX VI if RX and TX VIs are separate */
@@ -1676,7 +1675,6 @@ static int emu_init(void)
   memset((void *)env, 0, shm_len());
 
   env->cplane_mibs.dim.llap_max = env->cplane_mibs.LLAP_TABLE_SIZE;
-  env->cplane_mibs.dim.hwport_max = env->cplane_mibs.LLAP_TABLE_SIZE;
 
   /* We need to unlink the shm at tear-down if and only if we're a back-to-back
    * master.  If and when a slave comes along, it will unlink the shm as soon
@@ -1836,7 +1834,6 @@ zf_emu_intf_add(const char* ifname, cicp_hwport_mask_t rx_hwports,
   emu_environment* env = emu_environment_get();
   cicp_rowid_t rowid = env->cplane_mibs.llap_free_rowid++;
   cicp_llap_row_t* llap = &env->cplane_mibs.llap[rowid];
-  struct cp_hwport_row* hwport_row = &env->cplane_mibs.hwport[rowid];
 
   ZF_TEST(rowid < env->cplane_mibs.LLAP_TABLE_SIZE);
 
@@ -1863,9 +1860,6 @@ zf_emu_intf_add(const char* ifname, cicp_hwport_mask_t rx_hwports,
   }
   llap->rx_hwports = rx_hwports;
   llap->tx_hwports = tx_hwports;
-
-  hwport_row->ifindex = llap->ifindex;
-  hwport_row->flags |= CP_HWPORT_ROW_IN_USE;
 
   /* If this is not a bond, set the peer VI.  For the bonded case, the peers
    * are specified by the slaves themselves. */
@@ -2422,7 +2416,6 @@ emu_oo_cp_create(int fd, struct oo_cplane_handle* handle,
     handle->mib[i].llap = env->cplane_mibs.llap;
     handle->mib[i].version = &env->cplane_mibs.version;
     handle->mib[i].llap_version = &env->cplane_mibs.llap_version;
-    handle->mib[i].hwport = env->cplane_mibs.hwport;
   }
 
   return 0;
