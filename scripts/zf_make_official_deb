@@ -1,0 +1,109 @@
+#! /bin/bash -eu
+#
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: (c) 2022 Advanced Micro Devices, Inc.
+
+bin=$(cd "$(dirname "$0")" && /bin/pwd)
+me=$(basename "$0")
+
+err()  { echo >&2 "$*"; }
+log()  { err "$me: $*"; }
+fail() { rm -rf "$tempfile"; log "$*"; exit 1; }
+try()  { "$@" || fail "FAILED: $*"; }
+
+lib64_path() {
+  if [ -e /lib/x86_64-linux-gnu/libc.so.6 ]; then
+      echo "lib/x86_64-linux-gnu"
+  else
+      echo "lib64"
+  fi
+}
+
+usage() {
+  err
+  err "usage:"
+  err "  $me [options] <staged_tree>"
+  err
+  err "options:"
+  err "  --out <path>        - directory to write source package to"
+  err "  --version <version> - version number for debian package"
+  err
+  err "notes:"
+  err "  prepare an appropriate staging directory. Example usage:"
+  err "    zf_install --packaging --dest-dir staging/usr"
+  err "    $me staging"
+  exit 1
+}
+
+######################################################################
+# main
+
+PATH="$bin:$PATH:/usr/sbin:/sbin"; export PATH
+TOP=$(cd "$bin/.." && /bin/pwd)
+outdir=$(pwd)
+version=
+stripped=true
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --out)            shift; outdir=$1;;
+  --version)        shift; version=$1;;
+  -*)               usage;;
+  *)                break;;
+  esac
+  shift
+done
+
+[ $# -eq 1 ] || usage
+
+staged=$1
+
+if [ ! -d "$outdir" ]; then
+  echo "$outdir does not appear to be a directory";
+  exit;
+fi
+
+if [ -z "$version" ]; then
+  version="0$(git rev-parse HEAD | cut -c -7)"
+fi
+
+# soversion=$(awk '/^ONLOAD_EXT_VERSION_MAJOR/{print $3}' $TOP/../mk/site/libs.mk)
+deb_ver="1"
+arch="amd64"
+package_name="tcpdirect"
+package="${package_name}_${version}"
+tcpdirect_dir="${package}-${deb_ver}_${arch}"
+tempfile=$(mktemp -d)
+
+if [ ! -d "$tempfile" ]; then
+  echo "mktemp failed to create a temporary directory - exiting";
+  exit;
+fi
+
+echo "Creating package $package in $tempfile"
+
+try mkdir -p "$tempfile/$tcpdirect_dir/DEBIAN"
+
+# Make any necessary replacements in the control files
+for i in "$TOP"/scripts/debian-templ/*; do
+  try sed -e "s/#VERSION#/$version/g" -e "s|#LIBDIR#|"$(lib64_path)"|g" < "$i" > "${tempfile}/${tcpdirect_dir}/DEBIAN/$(basename "$i")";
+done
+
+# Accoding to the Debian Policy Manual, executable maintainer scripts should be
+# owned by root:root and have mode 755
+for i in postinst postrm; do
+  try chmod 0755 "${tempfile}/${tcpdirect_dir}/DEBIAN/$i"
+done
+
+dest_dir="${tempfile}/${tcpdirect_dir}"
+
+try cp -a ${staged}/* "${dest_dir}"
+
+try cd "$tempfile"
+try fakeroot dpkg-deb -b "$tcpdirect_dir"
+try mv "$tcpdirect_dir.deb" "$outdir/"
+try rm -rf "$tempfile"
+
+echo ""
+echo "Wrote $outdir/$tcpdirect_dir.deb"
+echo ""

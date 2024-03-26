@@ -1,0 +1,204 @@
+/* SPDX-License-Identifier: MIT */
+
+/****************************************************************************
+ * Copyright 2004-2005: Level 5 Networks Inc.
+ * Copyright 2005-2019: Solarflare Communications Inc.
+ * Copyright 2019-2022: Xilinx Inc, 2100 Logic Drive, San Jose, CA 95124, USA.
+ ****************************************************************************
+ */
+
+/**************************************************************************\
+*//*! \file
+** \author    Advanced Micro Devices, Inc.
+** \brief     Additional Doxygen-format documentation for TCPDirect.
+** \date      2020/03/10
+** \copyright &copy;  Copyright 2020 Xilinx, Inc. Xilinx, the Xilinx logo,
+**            Solarflare, Onload, TCPDirect, and other designated brands
+**            included herein are trademarks of Xilinx in the United States
+**            and other countries. All other trademarks are the property of
+**            their respective owners.
+*//*
+\**************************************************************************/
+
+/**************************************************************************
+ * Example Applications page
+ *************************************************************************/
+/*! \page applications Example Applications
+
+Solarflare TCPDirect comes with a range of example applications - including
+source code and make files. This is a quick guide to using them, both for
+testing TCPDirect's effectiveness in an environment, and as starting points
+for developing applications.
+
+| Application                    | Description
+| :----------------------------- | :------------------------------------------------
+| \ref zfudppingpong             | Measure round-trip latency with UDP.
+| \ref zftcppingpong             | Measure round-trip latency with TCP.
+| \ref zfaltpingpong             | Measure round-trip latency with TCP TX Alternatives.
+| \ref zfsink                    | Receive stream of UDP datagrams and demonstrate muxer.
+| \ref zftcpmtpong               | Use of TCPDirect in multi-threaded applications.
+| \ref exchange                  | Simplified electronic trading exchange.
+| \ref trader_tcpdirect_ds_efvi  | Simplified electronic trader.
+
+
+\section zfudppingpong zfudppingpong
+
+The zfudppingpong application passes messages back and forth between two
+hosts using UDP, and uses this to measure the average round-trip latency.
+
+\subsection zfudppingpong_usage Usage
+
+__Server:__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
+  export ZF_ATTR=interface=ethX
+  zfudppingpong pong serverhost:serverport clienthost:clientport
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+__Client:__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
+  export ZF_ATTR=interface=ethX
+  zfudppingpong ping clienthost:clientport serverhost:serverport
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+where:
+- _ethX_ is the name of the network interface to use,
+- _serverhost_ and _clienthost_ identify the server and client machines
+  (e.g. `hostname` or  `192.168.0.10`), and
+- _serverport_ and _clientport_ are port numbers of your choosing on the
+  server and client machines
+
+There are various additional options.  See the help text for details.
+
+
+\section zftcppingpong zftcppingpong
+
+The zftcppingpong application passes messages back and forth between two
+hosts using TCP, and uses this to measure the average round-trip latency.
+It illustrates actively and passively opened TCP connections, and has an
+option to use a _muxer_.
+
+\subsection zftcppingpong_usage Usage
+
+__Server:__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
+  export ZF_ATTR=interface=ethX
+  zftcppingpong pong serverhost:serverport
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+__Client:__
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
+  export ZF_ATTR=interface=ethX
+  zftcppingpong ping serverhost:serverport
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+\section zfaltpingpong zfaltpingpong
+
+The zfaltpingpong application illustrates use of the \ref
+concepts_tx_alternatives feature, which supports lower latency sends with
+TCP.
+
+Usage is as for \ref zftcppingpong.
+
+
+\section zfsink zfsink
+
+The zfsink application demonstrates how to receive UDP datagrams, how to
+use the muxer, and the "waitable fd" mechanism for integration with other
+I/O and blocking.
+
+By default it traces the calls it makes, and this can be suppressed with
+the -q option.
+
+\subsection zfsink_usage Usage
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
+  export ZF_ATTR=interface=ethX
+  zfsink localaddr:port
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+_localadddr_ should be an IP address on interface _ethX_, or a multicast
+address.  There are various additional options -- run "zfsink -h" for
+details.
+
+
+\section zftcpmtpong zftcpmtpong
+
+The zftcpmtpong application demonstrates how to use TCPDirect in an
+application that does sends and receives on TCP sockets in separate
+threads.
+
+By default it traces the calls it makes, and this can be suppressed with
+the -q option.
+
+\subsection zftcpmtpong_usage Usage
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
+  export ZF_ATTR=interface=ethX
+  zftcpmtpong localaddr:port
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+_localadddr_ should be an IP address on interface _ethX_.  This application
+accepts incoming TCP connections and waits for messages to arrive.  It
+sends on each connection an equal number of bytes as are received (although
+not with the same contents).
+
+
+\section exchange exchange
+
+The exchange application plays the role of a simplified electronic trading exchange. It is to be used in conjunction with the \ref trader_tcpdirect_ds_efvi application.
+
+\section trader_tcpdirect_ds_efvi trader_tcpdirect_ds_efvi
+
+The trader_tcpdirect_ds_efvi application demonstrates various techniques to
+reduce latency. These techniques are often useful in electronic trading
+applications, and so this example takes the form of an extremely simplified
+electronic trading system.
+
+The \ref exchange application provides a simplified electronic trading exchange, and this application provides a simplified electronic trader.
+
+A trader_onload_ds_efvi application demonstrates similar techniques for Onload.
+
+For full details, see the `README` file in the `tests/trade_sim` directory.
+
+\subsection trader_tcpdirect_ds_efvi_usage Usage
+
+For normal socket-based sends, run as follows:
+
+__Server:__ <code>onload -p latency-best ./exchange _mcast-intf_</code>
+
+__Client:__ <code>./trader_tcpdirect_ds_efvi _mcast-intf_ _server_</code>
+
+For "delegated" sends, run as follows:
+
+__Server:__ <code>onload -p latency-best ./exchange _mcast-intf_</code>
+
+__Client:__ <code>./trader_tcpdirect_ds_efvi -d _mcast-intf_ _server_</code>
+
+where:
+- _mcast-intf_ is the multicast interface on the server or client machine
+  (e.g. `eth0`)
+- _server_ is the IP address of the server machine (e.g. `192.168.0.10`)
+
+There are various additional options. See the help text for details.
+
+\section building Building the Example Applications
+
+The TCPDirect example applications are built along with the Onload
+installation and should be present in the
+`openonload/build/gnu_x86_64/tests/zf_apps` subdirectory.
+
+Source code for the example applications is in the `src/tests/zf_apps`
+subdirectory.
+
+To rebuild the example applications use the following procedure:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
+  cd openonload/scripts/
+  export PATH="$PWD:$PATH"
+  cd ../build/gnu_x86_64/tests/zf_apps/
+  make clean
+  make
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+*/

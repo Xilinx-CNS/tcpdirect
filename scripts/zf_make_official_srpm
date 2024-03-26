@@ -1,0 +1,97 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: (c) 2022 Advanced Micro Devices, Inc.
+######################################################################
+
+me=$(basename "$0")
+err()  { echo >&2 "$*"; }
+log()  { err "$me: $*"; }
+fail() { log "$*"; exit 1; }
+try()  { "$@" || fail "FAILED: $*"; }
+
+
+usage_msg() {
+  err
+  err "usage:"
+  err "  $me <tcpdirect-tarball>"
+  err
+  err "options:"
+  err
+}
+
+
+usage() {
+  usage_msg
+  exit 1
+}
+
+
+logtry() {
+  log "$*"
+  try "$@"
+}
+
+
+cleanup() {
+  [ -d "$tmpd" ] && rm -rf "$tmpd"
+}
+
+
+######################################################################
+# main()
+version=
+tarball=
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --version)  shift; version="$1";;
+        -*)  usage;;
+        *)  tarball="$1";;
+    esac
+    shift
+done
+
+if [ -z "$version" ]; then
+    version=$(git rev-parse HEAD)
+fi
+
+# [ $# = 1 ] || usage
+# tarball="$1"
+
+tmpd=
+trap cleanup EXIT
+tmpd=$(mktemp -d /tmp/$me.XXXXXXXX)
+
+try [ -f "$tarball" ]
+tarballdir=$(cd "$(dirname "$tarball")" && /bin/pwd)
+tarballbase=$(basename "$tarball")
+tarball="$tarballdir/$tarballbase"
+try [ -f "$tarball" ]
+
+original_wd=$(/bin/pwd)
+try cd "$tmpd"
+
+# Edit the "Packager" line in the rpm spec file and rebuild tarball.
+try tar xf "$tarball"
+distd="$(basename "${tarball%.tgz}")"
+try [ -d "$distd" ]
+tab=$(echo -n -e "\t")
+try rm "$distd/scripts/zf_install" "$distd/scripts/zf_uninstall"
+
+try sed -i \
+ -e "s/pkgversion-DEFINITION/%define pkgversion $version/g" \
+ "$distd/scripts/tcpdirect.spec"
+
+tarball=$(basename "$tarball")
+try tar czf "$tarball" --owner=root --group=root "$distd"
+
+# Build source rpm.
+try mkdir -p rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+try rpmbuild --nodeps --define "_topdir $PWD/rpmbuild" -ts "$tarball"
+srpm=$(/bin/ls rpmbuild/SRPMS/*.rpm)
+srpmbase=$(basename "$srpm")
+destfile="$original_wd/$(echo "$srpmbase" | sed -e 's/\.el6//')"
+[ -f "$destfile" ] &&
+  fail "ERROR: '$destfile' already exists.  I will not overwrite."
+try cp "$srpm" "$destfile"
+echo "$destfile"

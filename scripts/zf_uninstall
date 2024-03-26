@@ -1,0 +1,18 @@
+#! /bin/sh -eu
+#
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: (c) 2020 Advanced Micro Devices, Inc.
+
+filelist="/usr/libexec/zf/uninstall_manifest"
+
+echo "Uninstalling TCPDirect"
+
+for path in $(cat ${filelist}); do
+    echo "Deleting ${path}"
+    rm -rf "${path}"
+    case "${path}" in
+        *.so*) ldconfig -n "$(dirname ${path})"
+    esac
+done
+
+echo "Uninstall complete"

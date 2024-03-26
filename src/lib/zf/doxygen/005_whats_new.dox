@@ -1,0 +1,45 @@
+/* SPDX-License-Identifier: MIT */
+
+/****************************************************************************
+ * Copyright 2004-2005: Level 5 Networks Inc.
+ * Copyright 2005-2019: Advanced Micro Devices, Inc..
+ * Copyright 2019-2022: Xilinx Inc, 2100 Logic Drive, San Jose, CA 95124, USA.
+ ****************************************************************************
+ */
+
+/**************************************************************************\
+*//*! \file
+** \author    Advanced Micro Devices, Inc.
+** \brief     Additional Doxygen-format documentation for TCPDirect.
+** \date      2020/03/10
+** \copyright &copy;  Copyright 2020 Xilinx, Inc. Xilinx, the Xilinx logo,
+**            Solarflare, Onload, TCPDirect, and other designated brands
+**            included herein are trademarks of Xilinx in the United States
+**            and other countries. All other trademarks are the property of
+**            their respective owners.
+*//*
+\**************************************************************************/
+
+/**************************************************************************
+ * What's New page
+ *************************************************************************/
+ /*! \page whatsnew What's New
+
+This chapter tells you what's new in this release of TCPDirect.
+
+If you are not a previous user of TCPDirect, go to \ref overview.
+
+\section whatsnew_process_incoming Processing incoming packet data
+
+TCPDirect applications can process incoming packet data during receipt. See
+\ref using_overlapped_receive.
+
+\section whatsnew_full_featured Full-featured firmware
+
+TCPDirect is now supported on full-featured firmware.
+
+\section whatsnew_bugfixes Bug fixes
+
+Various bugs have been fixed. For details, see the `ChangeLog` file.
+
+*/

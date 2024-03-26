@@ -1,0 +1,284 @@
+/* SPDX-License-Identifier: MIT */
+
+/****************************************************************************
+ * Copyright 2004-2005: Level 5 Networks Inc.
+ * Copyright 2005-2019: Solarflare Communications Inc.
+ * Copyright 2019-2022: Xilinx Inc, 2100 Logic Drive, San Jose, CA 95124, USA.
+ ****************************************************************************
+ */
+
+/**************************************************************************\
+*//*! \file
+** \author    Advanced Micro Devices, Inc.
+** \brief     Additional Doxygen-format documentation for TCPDirect.
+** \date      2020/03/10
+** \copyright &copy;  Copyright 2020 Xilinx, Inc. Xilinx, the Xilinx logo,
+**            Solarflare, Onload, TCPDirect, and other designated brands
+**            included herein are trademarks of Xilinx in the United States
+**            and other countries. All other trademarks are the property of
+**            their respective owners.
+*//*
+\**************************************************************************/
+
+/**************************************************************************
+ * Worked Example page
+ *************************************************************************/
+/*! \page example Worked Examples
+
+This part of the documentation examines simplified versions of \ref
+zfudppingpong and \ref zftcppingpong. These are small applications which listen
+for packets and replies, with as low latency as possible.
+
+\note These examples do not set the values of attributes programmatically.
+Instead, they are left with the values set from the defaults and the `ZF_ATTR`
+environment variable.  In particular, it is necessary to set the value of the
+`interface` attribute in `ZF_ATTR` in order to use these examples.
+Fully-fledged applications might prefer instead to set attributes using (for
+example) zf_attr_set_str().  Please see the \ref attributes chapter and the
+documentation for attr.h for more information.
+
+\section example_udp UDP ping pong example
+
+In the following example various boiler plate code has been omitted for
+clarity.  For a full usable version of this example see
+`src/tests/zf_apps/zfudppingpong.c`, which includes how to use timestamping,
+and other details.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
+#define SIZE 12
+#define ITERATIONS 1000000
+int ping;
+
+
+static void ping_pongs(struct zf_stack* stack, struct zfur* ur, struct zfut* ut)
+{
+  char send_buf[SIZE];
+  int sends_left = ITERATIONS;
+  int recvs_left = ITERATIONS;
+
+  struct {
+    /* The iovec used by zfur_msg must be immediately afterwards. */
+    struct zfur_msg msg;
+    struct iovec iov[2];
+  } msg;
+  const int max_iov = sizeof(msg.iov) / sizeof(msg.iov[0]);
+
+  if( ping ) {
+    ZF_TEST(zfut_send_single(ut, send_buf, SIZE) == SIZE);
+    --sends_left;
+  }
+
+  do {
+    /* Poll the stack until something happens. */
+    while( zf_reactor_perform(stack) == 0 )
+      ;
+    msg.msg.iovcnt = max_iov;
+    zfur_zc_recv(ur, &msg.msg, 0);
+    if( msg.msg.iovcnt ) {
+      if( sends_left ) {
+        ZF_TEST(zfut_send_single(ut, send_buf, SIZE) == SIZE);
+        --sends_left;
+      }
+      zfur_zc_recv_done(ur, &msg.msg);
+      --recvs_left;
+    }
+  } while( recvs_left );
+}
+
+
+int main(int argc, char* argv[])
+{
+  if( argc != 3 )
+    usage_err();
+
+  if( ! strcmp(argv[0], "ping") )
+    ping = true;
+  else if( ! strcmp(argv[0], "pong") )
+    ping = false;
+  else
+    usage_err();
+
+  struct addrinfo *ai_local, *ai_remote;
+  if( getaddrinfo_hostport(argv[1], NULL, &ai_local) != 0 ) {
+    fprintf(stderr, "ERROR: failed to lookup address '%s'\n", argv[1]);
+    exit(2);
+  }
+  if( getaddrinfo_hostport(argv[2], NULL, &ai_remote) != 0 ) {
+    fprintf(stderr, "ERROR: failed to lookup address '%s'\n", argv[2]);
+    exit(2);
+  }
+
+  /* Initialise the TCPDirect library and allocate a stack. */
+  ZF_TRY(zf_init());
+
+  struct zf_attr* attr;
+  ZF_TRY(zf_attr_alloc(&attr));
+
+  struct zf_stack* stack;
+  ZF_TRY(zf_stack_alloc(attr, &stack));
+
+  /* Allocate zockets and bind them to the given addresses.  TCPDirect has
+   * separate objects for sending and receiving UDP datagrams.
+   */
+  struct zfur* ur;
+  ZF_TRY(zfur_alloc(&ur, stack, attr));
+  ZF_TRY(zfur_addr_bind(ur, ai_local->ai_addr, ai_local->ai_addrlen,
+                        ai_remote->ai_addr, ai_remote->ai_addrlen, 0));
+
+  struct zfut* ut;
+  ZF_TRY(zfut_alloc(&ut, stack, ai_local->ai_addr, ai_local->ai_addrlen,
+                    ai_remote->ai_addr, ai_remote->ai_addrlen, 0, attr));
+
+  ping_pongs(stack, ur, ut);
+
+  return 0;
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+\section example_tcp TCP ping pong example
+
+In the following example some boiler plate code has been omitted for
+clarity.  For a full usable version of this example see
+`src/tests/zf_apps/zftcppingpong.c`, which includes how to use timestamping,
+the multiplexer, and other details.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
+#define SIZE 12
+#define ITERATIONS 1000000
+int ping;
+
+
+struct rx_msg {
+  /* The iovec used by zft_msg must be immediately afterwards */
+  struct zft_msg msg;
+  struct iovec iov[1];
+};
+
+
+static void ping_pongs(struct zf_stack* stack, struct zft* zock)
+{
+  char send_buf[SIZE];
+  struct rx_msg msg;
+  const int max_iov = sizeof(msg.iov) / sizeof(msg.iov[0]);
+  int sends_left = ITERATIONS;
+  int recvs_left = ITERATIONS;
+  bool zock_has_rx_data = false;
+
+  if( ping ) {
+    ZF_TEST(zft_send_single(zock, send_buf, SIZE, 0) == SIZE);
+    --sends_left;
+  }
+
+  do {
+    size_t bytes_left = SIZE;
+    do {
+      if( ! zock_has_rx_data )
+        /* Poll the stack until something happens. */
+        while( zf_reactor_perform(stack) == 0 )
+          ;
+      msg.msg.iovcnt = max_iov;
+      zft_zc_recv(zock, &msg.msg, 0);
+      if( msg.msg.iovcnt ) {
+        /* NB. msg.iov[0].iov_len==0 indicates we're not going to get any
+         * more data (ie. the other end has shutdown or connection has
+         * died).  We don't check for that here...instead it will be
+         * detected if zft_zc_recv_done()!=1.
+         */
+        ZF_TEST(msg.iov[0].iov_len <= bytes_left);
+        bytes_left -= msg.iov[0].iov_len;
+        if( bytes_left == 0 )
+          /* Break out to do send before zft_zc_recv_done() to save a few
+           * nanoseconds.
+           */
+          break;
+        ZF_TEST(zft_zc_recv_done(zock, &msg.msg) == 1);
+      }
+      zock_has_rx_data = msg.msg.pkts_left != 0;
+    } while( bytes_left );
+
+    if( sends_left ) {
+      ZF_TEST(zft_send_single(zock, send_buf, SIZE, 0) == SIZE);
+      --sends_left;
+    }
+    ZF_TEST(zft_zc_recv_done(zock, &msg.msg) == 1);
+    --recvs_left;
+  } while( recvs_left );
+}
+
+
+int main(int argc, char* argv[])
+{
+  if( argc != 2 )
+    usage_err();
+
+  if( ! strcmp(argv[0], "ping") )
+    ping = true;
+  else if( ! strcmp(argv[0], "pong") )
+    ping = false;
+  else
+    usage_err();
+
+  struct addrinfo* ai;
+  if( getaddrinfo_hostport(argv[1], NULL, &ai) != 0 ) {
+    fprintf(stderr, "ERROR: failed to lookup address '%s'\n", argv[1]);
+    exit(2);
+  }
+
+  /* Initialise the TCPDirect library and allocate a stack. */
+  ZF_TRY(zf_init());
+
+  struct zf_attr* attr;
+  ZF_TRY(zf_attr_alloc(&attr));
+
+  struct zf_stack* stack;
+  ZF_TRY(zf_stack_alloc(attr, &stack));
+
+  struct zft* zock;
+
+  if( ping ) {
+    /* In 'ping' mode, connect to the specified remote address. */
+    struct zft_handle* tcp_handle;
+    ZF_TRY(zft_alloc(stack, attr, &tcp_handle));
+    printf("Connecting to ponger\n");
+    ZF_TRY(zft_connect(tcp_handle, ai->ai_addr, ai->ai_addrlen, &zock));
+    /* The zft_connect() call is non-blocking, so the zocket is not yet
+     * connected.  Wait until the connect completes or fails...
+     */
+    while( zft_state(zock) == TCP_SYN_SENT )
+      zf_reactor_perform(stack);
+    ZF_TEST( zft_state(zock) == TCP_ESTABLISHED );
+  }
+  else {
+    /* In 'pong' mode, create a listening zocket and wait until we've
+     * accepted a connection.
+     */
+    struct zftl* listener;
+    int rc;
+    ZF_TRY(zftl_listen(stack, ai->ai_addr, ai->ai_addrlen, attr, &listener));
+    printf("Waiting for incoming connection\n");
+    do {
+      while( zf_reactor_perform(stack) == 0 );
+    } while( (rc = zftl_accept(listener, &zock)) == -EAGAIN );
+    ZF_TRY(rc);
+    ZF_TRY(zftl_free(listener));
+  }
+  printf("Connection established\n");
+
+  ping_pongs(stack, zock);
+
+  /* Do a clean shutdown and free all resources. */
+  printf("Completed\n");
+  while( zft_shutdown_tx(zock) == -EAGAIN )
+    zf_reactor_perform(stack);
+
+  while( ! zf_stack_is_quiescent(stack) )
+    zf_reactor_perform(stack);
+
+  ZF_TRY(zft_free(zock));
+  ZF_TRY(zf_stack_free(stack));
+  ZF_TRY(zf_deinit());
+  return 0;
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+*/

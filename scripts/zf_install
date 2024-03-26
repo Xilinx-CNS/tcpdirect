@@ -1,0 +1,186 @@
+#! /bin/bash -eu
+#
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: (c) 2022 Advanced Micro Devices, Inc.
+#
+# Install TCPDirect into system directories.
+
+me=$(basename "$0")
+default_dest="/usr"
+
+err()  { echo >&2 "$*"; }
+log()  { err "$me: $*"; }
+fail() { rm -rf "$tempfile"; log "$*"; exit 1; }
+try()  { "$@" || fail "FAILED: $*"; }
+
+usage() {
+  err
+  err "usage:"
+  err "  $me [options]"
+  err
+  err "options:"
+  err "  --dest-dir  install to alternative location to ${default_dest}"
+  err "  --dry-run"
+  err "  --packaging"
+  err
+  exit 1
+}
+
+######################################################################
+# main
+
+dry_run=false
+packaging=false
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --dest-dir)       shift; DESTDIR="$1";;
+  --dry-run)        dry_run=true;;
+  --packaging)      packaging=true;;
+  -*)               usage;;
+  *)                break;;
+  esac
+  shift
+done
+
+if $dry_run; then
+  run() { echo "dry run: $@"; }
+  run_silent() { true; }
+else
+  run() { "$@"; }
+  run_silent() { "$@"; }
+fi
+
+######################################################################
+
+DESTDIR=${DESTDIR:-${default_dest}}
+
+my_dir=$(cd $(dirname "$0") && /bin/pwd)
+top_dir=$(dirname "$my_dir")
+
+usr_path() {
+    echo "${DESTDIR}"
+}
+
+lib64_path() {
+  if [ -e /lib/x86_64-linux-gnu/libc.so.6 ]; then
+      echo "$(usr_path)/lib/x86_64-linux-gnu"
+  else
+      echo "$(usr_path)/lib64"
+  fi
+}
+
+package_name() {
+    echo "tcpdirect"
+}
+
+usrbin_path() {
+    echo "$(usr_path)/bin"
+}
+
+usrinclude_path() {
+    echo "$(usr_path)/include"
+}
+
+packagedocs_path() {
+    echo "$(usr_path)/share/doc/$(package_name)"
+}
+
+manifest_path() {
+    echo "$(usr_path)/libexec/zf/uninstall_manifest"
+}
+
+
+# Adds a file or directory to the manifest so it can be deleted on uninstall
+add_to_manifest() {
+    path="$1"
+    if [ -L "${path}" ]; then
+        type="symlink"
+    elif [ -d "${path}" ]; then
+        type="directory"
+    else
+        type="file"
+    fi
+
+    echo "Created ${path}"
+    if ! $packaging && ! $dry_run; then
+        echo "${path}" >> $(manifest_path)
+    fi
+}
+
+
+# Creates the directory dst_dir
+install_dir() {
+    dst_dir="$1"
+    run mkdir -p "${dst_dir}"
+    add_to_manifest "${dst_dir}"
+}
+
+
+# Installs the file at src_path into dst_dir
+install_file() {
+    src_path="$1"
+    dst_dir="$2"
+    [ -d "${dst_dir}" ] || run_silent mkdir -p "${dst_dir}"
+    dst_path="${dst_dir}/$(basename ${src_path})"
+    run cp -a "${src_path}" "${dst_path}"
+    add_to_manifest "${dst_path}"
+}
+
+
+# Installs all files in src_dir to dst_dir
+install_files() {
+    src_dir="$1"
+    dst_dir="$2"
+    for name in $(ls $src_dir); do
+        full_path="${src_dir}/${name}"
+        install_file "${full_path}" "${dst_dir}"
+    done
+}
+
+
+do_install() {
+    libdir=$(lib64_path)
+    bindir=$(usrbin_path)
+    includedir="$(usrinclude_path)/zf"
+    debug_libdir="${libdir}/zf/debug"
+    docsdir="$(packagedocs_path)"
+
+    if ! $packaging; then
+        install_dir "$(dirname $(manifest_path))"
+        add_to_manifest "$(manifest_path)"
+    fi
+
+    install_file "${top_dir}/scripts/zf_debug" "${bindir}"
+
+    # We do not want to install zf_uninstall when using packages,
+    # only when installing the tarball
+    if ! $packaging; then
+        install_file "${top_dir}/scripts/zf_uninstall" "${bindir}"
+    fi
+
+    install_files "${top_dir}/release/bin" "${bindir}"
+    install_files "${top_dir}/release/lib" "${libdir}"
+
+    install_dir "$(dirname ${debug_libdir})"
+    install_files "${top_dir}/debug/lib" "${debug_libdir}"
+
+    install_dir "${includedir}"
+    install_files "${top_dir}/src/include/zf" "${includedir}"
+
+    install_dir "${docsdir}"
+    install_file "${top_dir}/LICENSE" "${docsdir}"
+
+    install_dir "${docsdir}/examples"
+    install_files "${top_dir}/src/tests" "${docsdir}/examples"
+
+    if ! $packaging; then
+        echo "Running ldconfig"
+        run ldconfig -n "${libdir}"
+        run ldconfig -n "${debug_libdir}"
+    fi
+}
+
+echo "Installing TCPDirect"
+do_install
+echo "TCPDirect install complete"

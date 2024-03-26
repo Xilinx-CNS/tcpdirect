@@ -1,0 +1,279 @@
+/* SPDX-License-Identifier: MIT */
+
+/****************************************************************************
+ * Copyright 2004-2005: Level 5 Networks Inc.
+ * Copyright 2005-2019: Solarflare Communications Inc.
+ * Copyright 2019-2022: Xilinx Inc, 2100 Logic Drive, San Jose, CA 95124, USA.
+ ****************************************************************************
+ */
+
+/**************************************************************************\
+*//*! \file
+** \author    Advanced Micro Devices, Inc.
+** \brief     Additional Doxygen-format documentation for TCPDirect.
+** \date      2020/03/10
+** \copyright &copy;  Copyright 2020 Xilinx, Inc. Xilinx, the Xilinx logo,
+**            Solarflare, Onload, TCPDirect, and other designated brands
+**            included herein are trademarks of Xilinx in the United States
+**            and other countries. All other trademarks are the property of
+**            their respective owners.
+*//*
+\**************************************************************************/
+
+/**************************************************************************
+ * Overview page
+ *************************************************************************/
+ /*! \page overview Overview
+
+This part of the documentation gives an overview of TCPDirect and how it is
+often used.
+
+\section overview_platforms Platforms
+
+TCPDirect can be run on X2000-series and 8000-series Solarflare adapters with
+a suitable license (e.g. the 'Plus' license).
+
+TCPDirect can also be run on 7000-series adapters which require both the Onload
+license and a TCPDirect license.
+
+Refer to the _Solarflare Server Adapter User Guide_ ‘Product Specifications’
+for adapter details; for licensing queries, please contact your sales representative.
+
+TCPDirect is supported on the same Linux distributions as Onload. For
+details, refer to the _Onload User Guide_ that was supplied with the Onload
+package.
+
+\section overview_components Components
+
+TCPDirect is supplied as:
+- header files containing the proprietary public API
+- a binary library for linking into your application.
+
+To use TCPDirect, you must have access to the source code for your
+application, and the toolchain required to build it. You must then replace
+the existing calls for network access with appropriate calls from the
+TCPDirect API. Typically this involves replacing calls to the BSD sockets
+API. Finally you must recompile your application, linking in the TCPDirect
+library.
+
+For more details, see \ref using.
+
+If you do not have access to source code for your application, you can
+instead accelerate it with Onload.
+
+\section overview_capabilities Capabilities and Restrictions
+
+TCPDirect supports a carefully selected feature set that allows it to run
+many real-world applications, without losing performance to
+resource-intensive features that are seldom used.
+
+Before porting an application to TCPDirect, you should ensure that it
+supports the features that you require. The subsections below list the
+support for different features.
+
+If your application requires features that are unsupported by TCPDirect,
+consider instead using Onload or ef_vi:
+
+- Onload has higher latency than TCPDirect, but a full feature set.
+
+  Onload supports all of the standard BSD sockets API, meaning that no
+modifications are required to POSIX-compliant socket-based applications
+being accelerated. Like TCPDirect, Onload uses kernel bypass for applications
+over TCP/IP and UDP/IP protocols.
+
+- Ef_vi has even lower latency than TCPDirect, but operates at a lower level.
+
+  Ef_vi is a low level OSI level 2 interface which sends and receives raw
+Ethernet frames, and exposes many of the advanced capabilities of
+Solarflare network adapters. But because the ef_vi API operates at this low
+level, any application using it must implement the higher layer protocols
+itself, and also deal with any exceptions or other unusual conditions.
+
+\subsection overview_protocols Protocols
+
+The table below shows the protocols that are supported by TCPDirect and (for
+comparison) by Onload:
+
+| Protocol                             | TCPDirect | Onload
+| :----------------------------------- | :-------- | :-----
+| IPv4                                 | Yes       | Yes
+| IPv6                                 | No        | No
+| UDP                                  | Yes       | Yes
+| TCP                                  | Yes       | Yes
+| TCP header options (e.g. timestamps) | No        | Yes
+| VLANs                                | Yes       | Yes
+| Multicast RX                         | Yes       | Yes
+| Multicast TX                         | Yes       | Yes
+| Multicast loopback                   | No        | Yes
+
+\subsection overview_os OS
+
+The table below shows the OS features that are supported by TCPDirect and (for
+comparison) by Onload:
+
+| OS                                            | TCPDirect | Onload
+| :-------------------------------------------- | :-------- | :-----
+| Preload                                       | No        | Yes
+| Static link                                   | Yes       | Yes
+| Dynamic link                                  | Yes       | Yes
+| Direct API                                    | Yes       | Yes
+| Bonding                                       | Yes       | Yes
+| Teaming                                       | Yes       | Yes
+| Send/receive via non-SFC interface            | No        | Yes
+| Multiple threads                              | Yes       | Yes
+| Multiple processes                            | Yes       | Yes
+| Sharing stacks between threads and processes  | No        | Yes
+| Multiple stacks                               | Yes       | Yes
+| fork()                                        | Yes, with limitations (no shared stacks or zockets)  | Yes
+| dup()                                         | N/A (no file descriptors)  | Yes
+| User-level only                               | Yes       | No
+| Interrupts                                    | No        | Yes
+| Huge pages                                    | Yes       | Yes
+
+As mentioned in the table above, TCPDirect stacks and zockets cannot be shared
+between processes.  The one partial exception is that a stack may be used in a
+\p fork() child if it is not used in the parent after calling \p fork().
+
+\subsection network_config Network Interface Configuration
+
+TCPDirect can accelerate traffic over Solarflare network interfaces, and will
+respect the operating system's address and routing configuration.  It can also
+accelerate traffic over bonds whose slaves are all Solarflare interfaces.  The
+bonding implementations provided by both the \p bonding and \p teaming drivers
+are supported.  This functionality is subject to the following restrictions:
+
+ - Only LACP and active-backup modes are supported.
+ - With LACP, the only supported hashing modes are \p layer2, \p layer2+3,
+   and \p layer3+4.
+ - There is no support for the addition of slaves to bonds during the lifetime
+   of the stack, and nor is there support for the removal of slaves from bonds.
+   Failover between interfaces in a bond is supported, however.
+ - \ref concepts_tx_alternatives "TX alternatives" are not supported on stacks
+   created on bonded interfaces.
+
+
+\section overview_performance How TCPDirect Increases Performance
+
+TCPDirect can significantly reduce the costs associated with networking by
+reducing CPU overheads and improving performance for latency, bandwidth and
+application scalability.
+
+\subsection overview_overhead Overhead
+
+Transitioning into and out of the kernel from a user-space application is a
+relatively expensive operation: the equivalent of hundreds or thousands of
+instructions. With conventional networking such a transition is required
+every time the application sends and receives data. With TCPDirect, the TCP/IP
+processing can be done entirely within the user-process, eliminating
+expensive application/kernel transitions, i.e. system calls. In addition, the
+TCPDirect TCP/IP stack is highly tuned, offering further overhead savings.
+
+The overhead savings of TCPDirect mean more of the CPU's computing power is
+available to the application to do useful work.
+
+\subsection overview_latency Latency
+
+Conventionally, when a server application is ready to process a transaction
+it calls into the OS kernel to perform a 'receive' operation, where the
+kernel puts the calling thread 'to sleep' until a request arrives from the
+network. When such a request arrives, the network hardware 'interrupts' the
+kernel, which receives the request and 'wakes' the application.
+
+All of this overhead takes CPU cycles as well as increasing cache and
+translation lookaside-buffer (TLB) footprint. With TCPDirect, the application
+can remain at user level waiting for requests to arrive at the network
+adapter and process them directly. The elimination of a kernel-to-user
+transition, an interrupt, and a subsequent user-to-kernel transition can
+significantly reduce latency. In short, reduced overheads mean reduced
+latency.
+
+\subsection overview_bandwidth Bandwidth
+
+Because TCPDirect imposes less overhead, it can process more bytes of network
+traffic every second. Along with specially tuned buffering and algorithms
+designed for high speed networks, TCPDirect allows applications to achieve
+significantly improved bandwidth.
+
+\subsection overview_scalability Scalability
+
+Modern multi-core systems are capable of running many applications
+simultaneously. However, the advantages can be quickly lost when the multiple
+cores contend on a single resource, such as locks in a kernel network stack
+or device driver. These problems are compounded on modern systems with
+multiple caches across many CPU cores and Non-Uniform Memory Architectures.
+
+TCPDirect results in the network adapter being partitioned and each partition
+being accessed by an independent copy of the TCP/IP stack. The result is that
+with TCPDirect, doubling the cores really can result in doubled throughput.
+
+\section requirements Requirements
+
+\subsection adapter_requirements Adapter
+
+The following list identifies the minimum driver and firwmare requirements for adapters running TCPDirect applications:
+
+- Net driver minimum: 4.10.1011 - this is available in the openonload-201606-u1 and Enterprise Onload 5.0 distributions.
+- Firmware minimum: 6.2.3.1000
+- Firmware variant: The adapter must be configured to use the ultra-low-latency firmware
+variant. The firmware variant can be identified/set using the Solarflare sfboot utility from
+the Solarflare Linux Utilities package (SF-107601-LS).
+
+\subsection license_requirements License
+
+SFN8000 series adapters - require an Onload license and TCPDirect license. The 'Plus' license
+will include both required licenses.
+
+X2000 series adapters - require an Onload license and TCPDirect license. The 'Plus' license
+will include both required licenses.
+
+SFN7000 series adapters - require an Onload license and TCPDirect license.
+
+Installed licenses can be identified using the Solarflare sfkey utility from the Solarflare
+Linux Utilities package (SF-107601-LS).
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
+# sfkey
+enp4s0f0,enp4s0f1: 712200205071234567890123 (Flareon)
+  Product name          Solarflare SFN7122F SFP+ Server Adapter
+  Serial number         712200205071234567890123
+  Installed keys        Onload, TCP Direct
+
+enp5s0f0,enp5s0f1: 000F5341C700 (8xxx)
+  Product name          Solarflare Flareon Ultra 8000 Series 10G Adapter
+  Serial number         852200203001234567890123
+  Installed keys        Plus
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+\subsection ool_requirements Onload
+
+Openonload from version 201606-u1 or EnterpriseOnload 5.0 must be installed on the server.
+
+\subsection huge_pages Huge Pages
+
+TCPDirect requires the allocation of huge pages. Huge pages are needed for each
+stack created - approximate mininum 10 huge pages per stack, the number of zockets created
+and number of packet buffers required. Some experimentation is needed to identify
+suitable page allocation needs for an application, but a general recommendation would
+be to allocate at least 40 huge pages per stack and then to use zf_stackdump to identify
+packet buffer usage.
+
+Further information including allocation commands for huge pages is available in the Onload
+User Guide (SF-104474-CD).
+
+\subsection pio_requirement PIO
+
+TCPDirect uses PIO packet buffers and these are available by default from the adapter driver.
+Users should be aware that PIO buffers are a limited resource used by the driver
+for non-accelerated sockets, by Onload stacks which require 1 PIO buffer per VI created and
+by the TCPDirect application which require 1 PIO buffer per stack.
+
+To ensure there are sufficient PIO buffers available, it may be necessary to restrict or prevent
+the driver and Onload non-critical sockets from using PIO.
+
+Further information about PIO including configuration commands can be found in the Onload User
+Guide (SF-104474-CD).
+
+*/
+
+
+

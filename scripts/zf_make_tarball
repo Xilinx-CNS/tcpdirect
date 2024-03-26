@@ -1,0 +1,107 @@
+#! /bin/bash -e
+#
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: (c) 2020-2023 Advanced Micro Devices, Inc.
+
+my_dir=$(cd $(dirname "$0") && /bin/pwd)
+top_dir=$(dirname "${my_dir}")
+
+make_release_package() {
+    package_version="$1"
+    script_dir="${top_dir}/scripts"
+    build_dir="${top_dir}/build"
+    doc_dir="${top_dir}/doc"
+
+    package_name="${name_prefix}-${package_version}"
+    stage_dir="${build_dir}/${package_name}"
+
+    rm -rf "${stage_dir}"
+    mkdir -p "${stage_dir}"
+
+    if [ "$stripped" = true ]; then
+        cp -r "${build_dir}"/artifacts/stripped/* "${stage_dir}"
+    else
+        cp -r "${build_dir}"/artifacts/unstripped/* "${stage_dir}"
+    fi
+
+    if [ -d "${build_dir}/artifacts/shim" ]; then
+        cp -r "${build_dir}/artifacts/shim" "${stage_dir}"
+    fi
+
+    mkdir "${stage_dir}/scripts"
+    cp "${script_dir}"/zf_install    "${stage_dir}/scripts"
+    cp "${script_dir}"/zf_uninstall  "${stage_dir}/scripts"
+    cp "${script_dir}"/zf_debug      "${stage_dir}/scripts"
+    cp "${script_dir}"/tcpdirect_misc/tcpdirect.spec "${stage_dir}/scripts"
+
+
+    # Add documents to tarball
+    # Currently only ReleaseNotes exists (in a separate branch), so checks are added for each file
+    if [ -d "$doc_dir" ]; then
+        if [ -f "${doc_dir}/ReleaseNotes" ]; then
+            cp "${doc_dir}/ReleaseNotes" "${stage_dir}"
+        fi
+
+        if [ -f "${doc_dir}/LICENSE" ]; then
+            cp "${doc_dir}/LICENSE" "${stage_dir}"
+        fi
+
+        if [ -f "${doc_dir}/ChangeLog" ]; then
+            cp "${doc_dir}/ChangeLog" "${stage_dir}"
+        fi
+    fi
+
+    
+
+    # Archive API headers and example source.
+    for subdir in \
+        src/include/zf \
+        src/include/zf/sysdep \
+        src/tests/zf_apps \
+        src/tests/trade_sim
+    do
+        mkdir -p "${stage_dir}/${subdir}"
+        find "${top_dir}/${subdir}" \
+            -name '*.c'       -or \
+            -name '*.h'       -or \
+            -name 'Makefile*' -or \
+            -name 'README' |
+            xargs -I{} cp {} "${stage_dir}/${subdir}"
+    done
+
+    if [ "$stripped" = true ]; then
+        package="${package_name}.tgz"
+    else
+        package="${package_name}-unstripped.tgz"
+    fi
+
+    cd "${build_dir}"
+
+    tar -czvf "${package}" --owner=root --group=root  "${package_name}"
+    md5sum "${package}" >"${package}.md5"
+
+    cd ../
+    rm -rf "${stage_dir}"
+
+    echo "Written ${package}"
+}
+
+version=
+stripped=true
+name_prefix="tcpdirect"
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --version)  shift; version="$1";;
+        --name) shift; name_prefix="$1";;
+        --unstripped) stripped=false;;
+        -*)  usage;;
+    esac
+    shift
+done
+
+if [ -z "$version" ]; then
+    version=$(git rev-parse HEAD)
+fi
+
+make_release_package "${version}"

@@ -1,0 +1,8 @@
+Package: tcpdirect
+Version: #VERSION#
+Section: libs
+Priority: optional
+Architecture: amd64
+Depends: onload-user | enterpriseonload-user | openonload-user | cloudonload-user
+Maintainer: Support <support-nic@amd.com>
+Description: TCPDirect library

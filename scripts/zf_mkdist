@@ -1,0 +1,127 @@
+#! /bin/bash -e
+#
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: (c) 2020-2023 Advanced Micro Devices, Inc.
+#
+##############################################################################
+# Builds a TCPDirect package for use by customers, containing prebuilt
+# libraries and binaries in both debug and release forms, and scripts
+# to install and uninstall the package
+##############################################################################
+
+
+my_dir=$(cd $(dirname "$0") && /bin/pwd)
+top_dir=$(dirname "${my_dir}")
+
+declare -a build_servers
+build_servers=(xcb-onload-build-x86_64 onload-build-x86_64)
+
+copy_to_remote="
+Makefile
+Makefile.onload
+Makefile-top.inc
+src
+scripts
+"
+
+usage() {
+    echo
+    echo "usage:"
+    echo "  $(basename $0) [options] <onload_tarball>"
+    echo
+    echo "options:"
+    echo "  --version <version>"
+    echo "  --shim"
+    echo
+    exit 1
+}
+
+
+resolved_build_server=''
+resolve_build_server() {
+    if [ -z "${resolved_build_server}" ]
+    then
+        for host in "${build_servers[@]}"
+        do
+            resolved_build_server=$host
+            host $host > /dev/null 2>&1 && break
+        done
+    fi
+    echo ${resolved_build_server}
+}
+
+
+on_build_server() {
+    local build_server="$(resolve_build_server)"
+    # No X forwarding; no TTY; no prompts.  Disable host-key checking because the
+    # x86_64 build are done on one machines from a set that share a failover IP.
+    ssh -xT -o StrictHostKeyChecking=no -o BatchMode=yes "${build_server}" "$@"
+}
+
+
+cleanup() {
+    echo "${build_server}: Deleting ${remote_tmpdir}"
+    on_build_server rm -rf "${remote_tmpdir}"
+}
+
+
+copy_files_to_build_server() {
+    on_build_server mkdir -p "${remote_onload_dir}"
+    on_build_server mkdir -p "${remote_zf_dir}"
+    tar cz -C "${top_dir}" ${copy_to_remote} | on_build_server "tar xz -C ${remote_zf_dir}"
+    cat "${onload_tarball}" | on_build_server "tar xz -C ${remote_onload_dir}"
+}
+
+
+build_zf_on_server() {
+    on_build_server "${remote_zf_dir}"/scripts/zf_mkdist_build "${build_opts}"
+}
+
+
+grab_artifacts_from_server() {
+    remote_dir="${remote_zf_dir}/build/artifacts"
+    local_dir="${top_dir}/build/artifacts"
+    mkdir -p "${local_dir}"
+    on_build_server tar cz -C "${remote_dir}" . | tar zx -C "${local_dir}"
+}
+
+make_release_package() {
+    package_version="$1"
+    "${top_dir}"/scripts/zf_make_tarball --version "${package_version}" --name "zf"
+}
+
+######################################################################
+# main()
+
+version=
+stripped=true
+build_opts=""
+onload_tarball=
+tarball_count=0
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --version)  shift; version="$1";;
+        --unstripped) stripped=false;;
+        --shim) build_opts+="--shim";;
+        -*)  usage;;
+        *)  onload_tarball="$1"; tarball_count=$((tarball_count+1));;
+    esac
+    shift
+done
+
+if [ -z "$version" ]; then
+    version=$(git rev-parse HEAD)
+fi
+
+[ $tarball_count -eq 1 ] || usage
+
+remote_tmpdir=$(on_build_server mktemp -d)
+remote_onload_dir="${remote_tmpdir}/onload"
+remote_zf_dir="${remote_tmpdir}/zf"
+trap cleanup EXIT
+
+copy_files_to_build_server
+build_zf_on_server
+grab_artifacts_from_server
+make_release_package "${version}"

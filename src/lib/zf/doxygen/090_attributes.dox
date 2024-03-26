@@ -1,0 +1,44 @@
+/* SPDX-License-Identifier: MIT */
+/* SPDX-FileCopyrightText: (c) Advanced Micro Devices, Inc. */
+
+/****************************************************************************
+ * Copyright 2004-2005: Level 5 Networks Inc.
+ * Copyright 2005-2019: Solarflare Communications Inc
+ * Copyright 2019-2022: Xilinx Inc, 2100 Logic Drive, San Jose, CA 95124, USA.
+ ****************************************************************************
+ */
+
+/**************************************************************************\
+*//*! \file
+** \author    Advanced Micro Devices, Inc.
+** \brief     Additional Doxygen-format documentation for TCPDirect.
+** \date      2020/03/10
+** \copyright &copy;  Copyright 2020 Xilinx, Inc. Xilinx, the Xilinx logo,
+**            Solarflare, Onload, TCPDirect, and other designated brands
+**            included herein are trademarks of Xilinx in the United States
+**            and other countries. All other trademarks are the property of
+**            their respective owners.
+*//*
+\**************************************************************************/
+
+/**************************************************************************
+ * Attributes page
+ *************************************************************************/
+
+ /* This file uses a perl script to generate content documenting the
+  * attributes. The generated content is inserted in the <placeholder> lines
+  * below. See FILTER_PATTERNS in the doxyfile, and make-attr-doc.pl. */
+
+/*! \page attributes Attributes
+
+Many TCPDirect API functions take an <i>attribute object</i> of type
+#zf_attr.  Each attribute object specifies a set of attributes, which are
+key-value pairs.  These attributes are documented in this section.
+
+| Attribute | Description
+| :-------- | :---------------------
+<placeholder for generated attrlinks>
+
+*/
+
+<placeholder for generated reference pages>
