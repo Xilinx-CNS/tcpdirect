@@ -111,7 +111,7 @@ nm.slack_notify() {
   stage('Parallel builds') {
     utils.parallel(
       'build ndebug': {
-        node('unit-test-parallel') {
+        node('unit-test-master') {
           sh 'rm -fr tcpdirect onload'
           unstash('tcpdirect-src')
           unstash('onload-src')
@@ -131,7 +131,7 @@ nm.slack_notify() {
       },
       'build libzf_sockets': {
         // This step produces artifacts, so let's have it build with predictable environment
-        node('build && centos7') {
+        node('unit-test-master') {
           sh 'rm -fr tcpdirect onload'
           unstash('tcpdirect-src')
           unstash('onload-src')
@@ -155,7 +155,7 @@ nm.slack_notify() {
         }
       },
       'run tests': {
-        node('unit-test-parallel') {
+        node('unit-test-master') {
           sh 'rm -fr tcpdirect onload packetdrill-tcpdirect test-results'
           unstash('tcpdirect-src')
           unstash('onload-src')
@@ -196,7 +196,7 @@ nm.slack_notify() {
   }
 
   // This step produces release artifacts, must be run in controlled environment
-  node('build && centos7') {
+  node('unit-test-master') {
     stage("Build TCPDirect Tarball") {
       sh 'rm -fr tcpdirect onload'
       unstash('tcpdirect-src')
