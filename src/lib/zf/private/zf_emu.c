@@ -2242,6 +2242,7 @@ static int emu_ef_vi_alloc_from_pd(ef_vi* vi, ef_driver_handle vi_dh,
                       wakeup_instance,
                       &evi->rxq.efct_rxq);
         evi->rxq.shm.active_qs = 1;
+        efct_vi_start_rxq(vi, 0, 0);
         for (unsigned int i = 0; i < 4; i++) {
           superbuf_begin(state, evi);
         }
