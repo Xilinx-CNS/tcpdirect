@@ -25,7 +25,7 @@ UT_B2B_SB := zf_superbuf_buffer zf_superbuf_buffer_reuse zf_superbuf_multiapp_sa
 						zf_superbuf_n_sleep zf_superbuf_sleepy_stacks
 UT_ALTS := zfalternatives
 UT_OTHER := zftcppingpong2
-UT_SCRIPTS := zfudppingpong.sh zf_tcp_sanity.sh packetdrill.sh zfsend.sh
+UT_SCRIPTS := zfudppingpong.sh zf_tcp_sanity.sh packetdrill.sh zfsend.sh zfudpttl.sh
 
 # sort is required to remove duplicates
 UT_ALL := $(sort \

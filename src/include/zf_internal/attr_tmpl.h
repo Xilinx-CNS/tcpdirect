@@ -188,6 +188,12 @@ ZF_ATTR(int, arp_reply_timeout, stable, 1000, "1000",
 
         "Maximum time to wait for ARP replies, in microseconds (approx).")
 
+ZF_ATTR(int, udp_ttl, stable, 64, "64",
+        "zf_socket",
+
+        "Value of TTL field (Time To Live) for outgoing UDP packets "
+        "(valid range 1-255).")
+
 
 /**********************************************************************
  * zf_vi attributes.
