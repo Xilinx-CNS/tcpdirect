@@ -168,9 +168,7 @@ $(UT_SCRIPT_BINS): $(UT_BINDIR)/%: $(SRC_CURRENT)/%
 .PHONY: $(UT_SCRIPT_BINS)
 $(UT_SCRIPT_BINS): zf_apps $(UT_BINDIR)/zftcppingpong2
 ifdef UT_OUTPUT
-PROVE_FLAGS += --formatter TAP::Formatter::JUnit
 UT_OUTPUT_DIR = $(UT_OUTPUT)
-PROVE_REDIRECT = | sed  "s/name=\"build.*zf_unit/name=\"$@/"> $(UT_OUTPUT)/$@.xml
 
 $(filter-out run_%,$(UT_ALL_TARGETS)): | $(UT_OUTPUT_DIR)
 
