@@ -8,15 +8,16 @@
 #    allowing to run subsets of tests with various variants
 UT_LOOP := zftest zfinit zfudprx zf_superbuf_reuse zftcprx zftcpcopyrx \
            zftcptx zfmulticast zftcp_muxer \
-           zfds efrxtimestamping zftimestamping zftcprx_on14495
+           zfds efrxtimestamping zftcprx_on14495
 UT_LOOP2 := zftest zfinit zfudprx zf_superbuf_reuse zftcprx zftcpcopyrx \
             zftcptx zfmulticast zftcp_muxer \
             zfds efrxtimestamping zftcprx_on14495
+UT_JENKINS := zfstackdump zftimestamping
 UT_MISC := zfpool zfmuxer zfrxtable zfzockbuf \
           zfmultizock zftimers zflisten zfbackingsock zfzockfree \
           zfquiesce_waittw zfquiesce_nowaittw zfstackfree \
           zfshm zfattrs zfattr_getset \
-          zfpending zftcp_full_sendq zfstackdump \
+          zfpending zftcp_full_sendq \
           zfbonding zfbonding_lacp zfmultizock_bond # these bonding tests should go to UT_LOOP but fail with vlan
 UT_DELEGATED := zfdelegated
 UT_B2B := zftcptimeouts zfovl zfreactorloop zfonlystack
@@ -27,6 +28,7 @@ UT_ALTS := zfalternatives
 UT_OTHER := zftcppingpong2
 UT_SCRIPTS := zfudppingpong.sh zf_tcp_sanity.sh packetdrill.sh zfsend.sh zfudpttl.sh
 
+
 # sort is required to remove duplicates
 UT_ALL := $(sort \
   $(UT_LOOP) \
@@ -36,7 +38,8 @@ UT_ALL := $(sort \
   $(UT_B2B) \
   $(UT_B2B_SB) \
   $(UT_ALTS) \
-  $(UT_OTHER))
+  $(UT_OTHER) \
+  $(UT_JENKINS))
 
 
 UT_OBJS := $(UT_ALL:%=$(OBJ_CURRENT)/%.o)
@@ -106,7 +109,7 @@ target_variants_ = $(1) $(foreach v, $(variants), $(1)_$v)
 target_variants = $(foreach t,$(1),$(call target_variants_,$(t)))
 target_explode = $(call target_variants,$(1)) $(call target_variants,$(2:%=run_%))
 
-UT_NONSCRIPT_LISTS := testloop testloop2 testmisc testdelegated testb2b testb2bsb testalts testrxx3
+UT_NONSCRIPT_LISTS := testloop testloop2  testjenkins testmisc testdelegated testb2b testb2bsb testalts testrxx3
 UT_SCRIPT_LISTS := testscript testpacketdrill
 UT_ALL_LISTS = $(UT_NONSCRIPT_LISTS) $(UT_SCRIPT_LISTS)
 
@@ -122,6 +125,7 @@ UT_ALL_NONSCRIPT_TARGETS := $(UT_ALL_LOOP_TARGETS) $(UT_ALL_MISC_TARGETS) \
 		  $(UT_ALL_B2B_SB_TARGETS)
 UT_ALL_SCRIPT_TARGETS := $(call target_explode,testscript,$(UT_SCRIPTS)) \
                          $(call target_variants,testpacketdrill,$(UT_SCRIPTS))
+UT_ALL_JENKINS_TARGETS := $(call target_explode,testjenkins,$(UT_JENKINS)) 
 UT_ALL_TARGETS := $(UT_ALL_NONSCRIPT_TARGETS) \
                   $(UT_ALL_SCRIPT_TARGETS)
 
@@ -196,6 +200,7 @@ endif
 
 $(call target_variants,testloop): $(UT_LOOP:%=$(UT_BINDIR)/%)
 $(call target_variants,testloop2): $(UT_LOOP2:%=$(UT_BINDIR)/%)
+$(call target_variants,testjenkins): $(UT_JENKINS:%=$(UT_BINDIR)/%)
 $(call target_variants,testmisc): $(UT_MISC:%=$(UT_BINDIR)/%)
 $(call target_variants,testdelegated): $(UT_DELEGATED:%=$(UT_BINDIR)/%)
 $(call target_variants,testb2bsb): $(UT_B2B_SB:%=$(UT_BINDIR)/%)
@@ -203,6 +208,7 @@ $(call target_variants,testb2b): $(UT_B2B:%=$(UT_BINDIR)/%)
 $(call target_variants,testalts): $(UT_ALTS:%=$(UT_BINDIR)/%)
 $(call target_variants,testscript): $(filter-out %packetdrill.sh,$(UT_SCRIPT_BINS))
 $(call target_variants,testpacketdrill): $(filter %packetdrill.sh,$(UT_SCRIPT_BINS))
+
 # for phony targets it does not matter whether dependencies are order-only or not
 # However order-only dependencies are out of $^ which makes recipes simpler.
 ifeq ("$(wildcard ../packetdrill-tcpdirect)", "")
@@ -252,9 +258,11 @@ test: testloop \
       testloop_vlan testloop_txvi testmisc \
 			testb2bsb \
       testdelegated_smallmtu \
-      testb2b testalts testalts_vlan testalts_txvi testpacketdrill \
-		  testscript_x3\
-      testscript
+      testb2b testalts testalts_vlan testalts_txvi testpacketdrill
+
+test_jenkins: testjenkins \
+              testscript_x3 \
+              testscript
 
 
 .PHONY: zf_unit test
