@@ -182,7 +182,9 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
   struct cp_fwd_data data;
   cicp_verinfo_t verinfo;
   int rc;
-  int iter;
+  int64_t time_limit_us;
+  int64_t time_used_us = 0;
+  struct timespec start;
   bool is_multi = CI_IP_IS_MULTICAST(path->dst);
 
   if( is_multi )
@@ -206,8 +208,14 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
                       CI_IP_PRINTF_ARGS(&key.dst.ip4),
                       key.ifindex);
 
-  iter = wait ? sti->arp_reply_timeout : 0;
+  time_limit_us = wait ? sti->arp_reply_timeout : 0;
+
+  if( time_limit_us )
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
   do {
+    struct timespec now;
+
     rc = oo_cp_route_resolve(&zf_state.cplane_handle,
                              &verinfo, &key, &data);
     if( rc < 0 || data.base.ifindex != sti->sti_ifindex ) {
@@ -231,10 +239,16 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
     /* In theory, we shoud break out if we see FLAG_ARP_FAILED popping up
      * in a non-first loop.  But if we see ARP_FAILED from the start, we
      * should give a chance to re-resolve.  For now we always loop. */
-    if( (data.flags & CICP_FWD_DATA_FLAG_ARP_VALID) || iter == 0 )
+    if( (data.flags & CICP_FWD_DATA_FLAG_ARP_VALID) || (time_limit_us == 0) )
       break;
 
-    iter--;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    time_used_us = ((now.tv_sec - start.tv_sec) * 1000000) +
+                   ((now.tv_nsec - start.tv_nsec) / 1000);
+
+    if( time_used_us >= time_limit_us )
+      break;
+
     usleep(1);
   } while( 1 );
 
@@ -243,7 +257,7 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
       zf_log_cplane_err(st, "ARP failed for " CI_IP_PRINTF_FORMAT "\n",
                         CI_IP_PRINTF_ARGS(&path->dst));
     }
-    else if( wait ) {
+    else if( time_limit_us ) {
       zf_log_cplane_err(st, "ARP timeout for " CI_IP_PRINTF_FORMAT "\n",
                         CI_IP_PRINTF_ARGS(&path->dst));
     }
@@ -258,10 +272,11 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
                       CI_MAC_PRINTF_ARGS(&data.dst_mac),
                       data.base.ifindex, data.encap.type);
 
-  if( iter > 0 ) {
+  if( time_limit_us ) {
     zf_log_cplane_info(st, "ARP for " CI_IP_PRINTF_FORMAT
                        " via ifindex %d took %dus\n",
-                       CI_IP_PRINTF_ARGS(&path->dst), data.base.ifindex, iter);
+                       CI_IP_PRINTF_ARGS(&path->dst),
+                       data.base.ifindex, time_used_us);
   }
 
   path->vlan = get_vlan(&data.encap);
