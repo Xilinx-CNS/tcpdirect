@@ -43,8 +43,13 @@ __zfr_pkt_get_timestamp(struct zf_stack* st, const char* pkt,
 
   /* Call ..._internal directly as we store the current timesync
    * values in the packet not the evq */
-  return ef10_receive_get_timestamp_with_sync_flags_internal
-    (vi, pkt, ts_out, flags_out, tsync_minor, tsync_major);
+  ef_precisetime ts;
+  int rc = ef10_receive_get_precise_timestamp_internal
+    (vi, pkt, &ts, tsync_minor, tsync_major);
+  ts_out->tv_sec = ts.tv_sec;
+  ts_out->tv_nsec = ts.tv_nsec;
+  *flags_out = ts.tv_flags;
+  return rc;
 }
 
 

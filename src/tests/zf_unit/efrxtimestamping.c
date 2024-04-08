@@ -37,7 +37,7 @@ extern "C" {
 #define TEST_TS(x, expected)                              \
   do {                                                    \
     auto [rc, a] = x;                                     \
-    struct timespec b = (struct timespec)expected;        \
+    ef_precisetime b = (ef_precisetime)expected;          \
     if( rc != 0 )                                         \
       ZF_TRY(std::get<0>(x));                             \
     if( cmp(a, b) != 0 ) {                                \
@@ -48,7 +48,9 @@ extern "C" {
     }                                                     \
   } while( 0 )
 
-static int cmp(struct timespec a, struct timespec b)
+/* Compare two ef_vi timestamps, throwing away any differences in
+ * the fractional nanoseconds part or sync flags. */
+static int cmp(ef_precisetime a, ef_precisetime b)
 {
   if( a.tv_sec < b.tv_sec )
     return -1;
@@ -63,8 +65,8 @@ static int cmp(struct timespec a, struct timespec b)
 }
 
 
-/* Returns the difference between two timespecs, in nanoseconds */
-static long long sub(struct timespec a, struct timespec b)
+/* Returns the difference between two ef_vi timestamps, in nanoseconds */
+static long long sub(ef_precisetime a, ef_precisetime b)
 {
   return (a.tv_sec - b.tv_sec) * (long long)NSEC_PER_SEC +
          a.tv_nsec - b.tv_nsec;
@@ -89,36 +91,35 @@ static uint8_t pkt[2048];
 static inline int get_timestamp(enum ef_timestamp_format ts_format,
                                 int rx_ts_correction,
                                 uint32_t tsync_major, uint32_t tsync_minor,
-                                uint32_t pkt_minor, struct timespec* ts_out)
+                                uint32_t pkt_minor, ef_precisetime* ts_out)
 {
   ef_vi_set_ts_format(&vi, ts_format);
   ef_vi_init_rx_timestamping(&vi, rx_ts_correction);
   *(uint32_t*)(pkt + ES_DZ_RX_PREFIX_TSTAMP_OFST) = pkt_minor;
 
-  unsigned flags;
-  return ef10_receive_get_timestamp_with_sync_flags_internal(
-    &vi, pkt, ts_out, &flags, tsync_minor, tsync_major);
+  return ef10_receive_get_precise_timestamp_internal(
+    &vi, pkt, ts_out, tsync_minor, tsync_major);
 }
 
 
-static inline std::tuple<int, struct timespec>
+static inline std::tuple<int, ef_precisetime>
 get_timestamp_27(int rx_ts_correction,
                  uint32_t tsync_major, uint32_t tsync_minor,
                  uint32_t pkt_minor)
 {
-  struct timespec ts;
+  ef_precisetime ts;
   int rc = get_timestamp(TS_FORMAT_SECONDS_27FRACTION, rx_ts_correction,
                          tsync_major, tsync_minor, pkt_minor, &ts);
   return {rc, ts};
 }
 
 
-static inline std::tuple<int, struct timespec>
+static inline std::tuple<int, ef_precisetime>
 get_timestamp_qns(int rx_ts_correction,
                   uint32_t tsync_major, uint32_t tsync_minor,
                   uint32_t pkt_minor)
 {
-  struct timespec ts;
+  ef_precisetime ts;
   int rc = get_timestamp(TS_FORMAT_SECONDS_QTR_NANOSECONDS, rx_ts_correction,
                          tsync_major, tsync_minor, pkt_minor, &ts);
   return {rc, ts};
@@ -131,17 +132,17 @@ static void test_timestamp_27(void)
   diag("test_timestamp_27:");
 
   /*                            tsync_minor, pkt_minor */
-  TEST_TS(get_timestamp_27(0, 10, 0x7FFFFFF, 0x7FFFFFF), ((struct timespec){ 10, 999999992 }));
-  TEST_TS(get_timestamp_27(0, 10, 0x7FFFFFF, 0x0000000), ((struct timespec){ 11,         0 }));
-  TEST_TS(get_timestamp_27(0, 10, 0x7FFFFFF, 0x0000001), ((struct timespec){ 11,         7 }));
+  TEST_TS(get_timestamp_27(0, 10, 0x7FFFFFF, 0x7FFFFFF), ((ef_precisetime){ 10, 999999992 }));
+  TEST_TS(get_timestamp_27(0, 10, 0x7FFFFFF, 0x0000000), ((ef_precisetime){ 11,         0 }));
+  TEST_TS(get_timestamp_27(0, 10, 0x7FFFFFF, 0x0000001), ((ef_precisetime){ 11,         7 }));
 
-  TEST_TS(get_timestamp_27(0, 10, 0, 0x7FFFFFF), ((struct timespec){  9, 999999992 }));
-  TEST_TS(get_timestamp_27(0, 10, 0, 0x0000000), ((struct timespec){ 10,         0 }));
-  TEST_TS(get_timestamp_27(0, 10, 0, 0x0000001), ((struct timespec){ 10,         7 }));
+  TEST_TS(get_timestamp_27(0, 10, 0, 0x7FFFFFF), ((ef_precisetime){  9, 999999992 }));
+  TEST_TS(get_timestamp_27(0, 10, 0, 0x0000000), ((ef_precisetime){ 10,         0 }));
+  TEST_TS(get_timestamp_27(0, 10, 0, 0x0000001), ((ef_precisetime){ 10,         7 }));
 
-  TEST_TS(get_timestamp_27(0, 10, 1, 0x7FFFFFF), ((struct timespec){  9, 999999992 }));
-  TEST_TS(get_timestamp_27(0, 10, 1, 0x0000000), ((struct timespec){ 10,         0 }));
-  TEST_TS(get_timestamp_27(0, 10, 1, 0x0000001), ((struct timespec){ 10,         7 }));
+  TEST_TS(get_timestamp_27(0, 10, 1, 0x7FFFFFF), ((ef_precisetime){  9, 999999992 }));
+  TEST_TS(get_timestamp_27(0, 10, 1, 0x0000000), ((ef_precisetime){ 10,         0 }));
+  TEST_TS(get_timestamp_27(0, 10, 1, 0x0000001), ((ef_precisetime){ 10,         7 }));
   diag(" ");
 }
 
@@ -153,28 +154,28 @@ static void test_timestamp_qns(void)
   diag("test_timestamp_qns:");
 
   /*                               tsync_minor, pkt_minor */
-  TEST_TS(get_timestamp_qns(-3, 10, 3999999999, 3999999997), ((struct timespec){ 10, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 3999999999, 3999999998), ((struct timespec){ 10, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 3999999999, 3999999999), ((struct timespec){ 10, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 3999999999,          0), ((struct timespec){ 10, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 3999999999,          1), ((struct timespec){ 11,         0 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 3999999999,          2), ((struct timespec){ 11,         0 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 3999999999, 3999999997), ((ef_precisetime){ 10, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 3999999999, 3999999998), ((ef_precisetime){ 10, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 3999999999, 3999999999), ((ef_precisetime){ 10, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 3999999999,          0), ((ef_precisetime){ 10, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 3999999999,          1), ((ef_precisetime){ 11,         0 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 3999999999,          2), ((ef_precisetime){ 11,         0 }));
   diag(" ");
 
-  TEST_TS(get_timestamp_qns(-3, 10, 0, 3999999997), ((struct timespec){  9, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 0, 3999999998), ((struct timespec){  9, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 0, 3999999999), ((struct timespec){  9, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 0,          0), ((struct timespec){  9, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 0,          1), ((struct timespec){ 10,         0 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 0,          2), ((struct timespec){ 10,         0 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 0, 3999999997), ((ef_precisetime){  9, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 0, 3999999998), ((ef_precisetime){  9, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 0, 3999999999), ((ef_precisetime){  9, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 0,          0), ((ef_precisetime){  9, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 0,          1), ((ef_precisetime){ 10,         0 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 0,          2), ((ef_precisetime){ 10,         0 }));
   diag(" ");
 
-  TEST_TS(get_timestamp_qns(-3, 10, 1, 3999999997), ((struct timespec){  9, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 1, 3999999998), ((struct timespec){  9, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 1, 3999999999), ((struct timespec){  9, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 1,          0), ((struct timespec){  9, 999999999 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 1,          1), ((struct timespec){ 10,         0 }));
-  TEST_TS(get_timestamp_qns(-3, 10, 1,          2), ((struct timespec){ 10,         0 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 1, 3999999997), ((ef_precisetime){  9, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 1, 3999999998), ((ef_precisetime){  9, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 1, 3999999999), ((ef_precisetime){  9, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 1,          0), ((ef_precisetime){  9, 999999999 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 1,          1), ((ef_precisetime){ 10,         0 }));
+  TEST_TS(get_timestamp_qns(-3, 10, 1,          2), ((ef_precisetime){ 10,         0 }));
   diag(" ");
 }
 
@@ -182,7 +183,7 @@ static void test_timestamp_qns(void)
 /* The following are more exhaustive tests of timestamping,
  * which check for non-monotonic anomalies and off by one second errors. */
 static void test_timestamp_extended(
-  std::tuple<int, struct timespec> (*get_timestamp)(int, uint32_t, uint32_t, uint32_t),
+  std::tuple<int, ef_precisetime> (*get_timestamp)(int, uint32_t, uint32_t, uint32_t),
   const char* name, uint32_t one_sec,
   const std::vector<int>& rx_ts_corrections,
   const std::vector<uint32_t>& tsync_minors,
@@ -196,13 +197,15 @@ static void test_timestamp_extended(
   for( int rx_ts_correction : rx_ts_corrections ) {
     for( uint32_t tsync_minor : tsync_minors ) {
       bool has_lastts = false;
-      struct timespec lastts = {0, 0};
+      ef_precisetime lastts = {0, 0, 0, 0};
 
-      /* Do the simplest possible conversion from tsync to timespec as a
+      /* Do the simplest possible conversion from tsync to ef_vi timestamp as a
        * reference */
-      struct timespec tsync = {
-        tsync_major,
-        (long)(tsync_minor * (uint64_t)NSEC_PER_SEC / one_sec)
+      ef_precisetime tsync = {
+        .tv_sec = tsync_major,
+        .tv_nsec = (uint32_t)((uint64_t)tsync_minor * (uint64_t)NSEC_PER_SEC / one_sec),
+        .tv_nsec_frac = 0,
+        .tv_flags = 0,
       };
 
       for( uint32_t pkt_minor : pkt_minors ) {
