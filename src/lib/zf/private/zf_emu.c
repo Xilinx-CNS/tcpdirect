@@ -329,7 +329,7 @@ struct emu_state {
       uint32_t total_buffers;
       struct efab_efct_rxq_uk_shm_base shm;
       /* No extra members here! shm_q is the flexible length array of shm */
-      struct efab_efct_rxq_uk_shm_q shm_q[1];
+      struct efab_efct_rxq_uk_shm_q shm_q[EF_VI_MAX_EFCT_RXQS];
       /* THESE ARE NEEDED FOR X3-userspace */
       uint16_t used_sbid[16];
 
