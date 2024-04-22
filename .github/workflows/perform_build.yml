@@ -3,7 +3,10 @@
 
 name: "perform_build"
 
-on: push
+on:
+  push:
+  pull_request:
+    types: [opened]
 
 jobs:
   extract_branch_info:
@@ -29,7 +32,6 @@ jobs:
         id: tcpdirectBranch
         run: echo "branch=$(yq -r '.products.TCPDirect.version' < $GITHUB_WORKSPACE/tcpdirect/versions.yaml)" >> "$GITHUB_OUTPUT"
 
-
       - name: Extract onload branch name
         id: onloadBranch
         run: echo "branch=$(yq -r '.products.Onload.version' < $GITHUB_WORKSPACE/tcpdirect/versions.yaml)" >> "$GITHUB_OUTPUT"
@@ -53,13 +55,13 @@ jobs:
       - name: onload checkout
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository_owner }}/onload_internal
-          path: onload_internal
-          ssh-key: ${{ secrets.ONLOAD_INTERNAL_PRIVATE_KEY }}
+          repository: ${{ github.repository_owner }}/onload
+          path: onload
           ref: ${{ needs.extract_branch_info.outputs.onloadBranch }}
 
       - name: packetdrill checkout
         uses: actions/checkout@v4
+        continue-on-error: true
         with:
           repository: ${{ github.repository_owner }}/packetdrill-tcpdirect
           path: packetdrill-tcpdirect
@@ -71,18 +73,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential perl
 
-
       - name: build
         run: |
           cd $GITHUB_WORKSPACE/tcpdirect
-          ONLOAD_TREE=$GITHUB_WORKSPACE/onload_internal NDEBUG=1 make -j $(nproc)
+          ONLOAD_TREE=$GITHUB_WORKSPACE/onload NDEBUG=1 make -j $(nproc)
 
       - name: shim
         run: |
           cd $GITHUB_WORKSPACE/tcpdirect
-          ONLOAD_TREE=$GITHUB_WORKSPACE/onload_internal NDEBUG=1 ZF_DEVEL=1 TEST_THREAD_NAME=zf make -j $(nproc) shim
+          ONLOAD_TREE=$GITHUB_WORKSPACE/onload NDEBUG=1 ZF_DEVEL=1 TEST_THREAD_NAME=zf make -j $(nproc) shim
 
       - name: tests
         run: |
           cd $GITHUB_WORKSPACE/tcpdirect
-          ONLOAD_TREE=$GITHUB_WORKSPACE/onload_internal NDEBUG=1 ZF_DEVEL=1 TEST_THREAD_NAME=zf make -j $(nproc) test
+          ONLOAD_TREE=$GITHUB_WORKSPACE/onload UT_OUTPUT=$GITHUB_STEP_SUMMARY NDEBUG=1 ZF_DEVEL=1 TEST_THREAD_NAME=zf make -j $(nproc) -k test
