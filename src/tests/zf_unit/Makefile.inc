@@ -171,32 +171,9 @@ $(UT_SCRIPT_BINS): $(UT_BINDIR)/%: $(SRC_CURRENT)/%
 # Notably it enforces copying the scripts everytime...
 .PHONY: $(UT_SCRIPT_BINS)
 $(UT_SCRIPT_BINS): zf_apps $(UT_BINDIR)/zftcppingpong2
-ifdef UT_OUTPUT
-UT_OUTPUT_DIR = $(UT_OUTPUT)
 
-$(filter-out run_%,$(UT_ALL_TARGETS)): | $(UT_OUTPUT_DIR)
-
-$(UT_OUTPUT_DIR):
-	mkdir -p $(UT_OUTPUT_DIR)/valgrind
-#moved valgrind results to separate folder to avoid junit accesing them
-	rm -rf $(UT_OUTPUT)/valgrind/*.xml
-	rm -rf $(UT_OUTPUT)/*.xml
-endif # UT_OUTPUT
-
-ifdef VALGRIND
-VALGRIND_FLAGS = valgrind --tool=memcheck --read-var-info=yes \
-		 --fair-sched=yes --track-fds=yes --xml=yes \
-		 --xml-file=$(UT_OUTPUT_DIR)/valgrind/$@_%p.xml\
-		 --show-mismatched-frees=yes --trace-children=yes\
-		 --undef-value-errors=yes --track-origins=yes \
-		 --leak-check=full --show-leak-kinds=all
-#As these are nightly tests given bit more time to avoid unnecessary timeouts.
-HARNESS_TIME_OUT=10800
-TEST_TIME_OUT=600
-else
 HARNESS_TIME_OUT=480
 TEST_TIME_OUT=120
-endif
 
 $(call target_variants,testloop): $(UT_LOOP:%=$(UT_BINDIR)/%)
 $(call target_variants,testloop2): $(UT_LOOP2:%=$(UT_BINDIR)/%)
@@ -211,7 +188,7 @@ $(call target_variants,testpacketdrill): $(filter %packetdrill.sh,$(UT_SCRIPT_BI
 
 # for phony targets it does not matter whether dependencies are order-only or not
 # However order-only dependencies are out of $^ which makes recipes simpler.
-ifeq ("$(wildcard ../packetdrill-tcpdirect)", "")
+ifeq ("$(wildcard ../packetdrill-tcpdirect/Makefile.inc)", "")
   packetdrill: ;
 endif
 $(call target_explode,testpacketdrill): | shim packetdrill
@@ -228,22 +205,22 @@ buildattrs = ZF_ATTR="$(subst $(space),;,$(ATTR_LIST))"
 $(call target_variants,$(UT_NONSCRIPT_LISTS)):
 	@echo "Test target: $@"
 	sudo env $(UT_ENV) $(ENV) $(call buildattrs) \
+		UT_OUTPUT=$(UT_OUTPUT) TEST_TIME_OUT=$(TEST_TIME_OUT) TEST_TARGET="$@" \
 		timeout $(HARNESS_TIME_OUT) \
 		prove --exec \
-		"timeout $(TEST_TIME_OUT) $(NETNS_SCRIPT) $(VALGRIND_FLAGS)" \
+		"$(NETNS_SCRIPT)" \
 		$(PROVE_FLAGS) \
-		$^ \
-		$(PROVE_REDIRECT)
+		$^
 
 $(call target_variants,$(UT_SCRIPT_LISTS)):
 	@echo "Test target: $@"
 	sudo env $(UT_ENV) $(ENV) EXTRA_$(call buildattrs) \
+		UT_OUTPUT=$(UT_OUTPUT) TEST_TIME_OUT=$(TEST_TIME_OUT) \
 		timeout $(HARNESS_TIME_OUT) \
 		prove --exec \
-		"timeout $(TEST_TIME_OUT) $(NETNS_SCRIPT) $(VALGRIND_FLAGS)" \
+		"$(NETNS_SCRIPT)" \
 		$(PROVE_FLAGS) \
-		$^ \
-		$(PROVE_REDIRECT)
+		$^
 
 
 # The targets need to run sequentieally as each uses huge pages and spins on CPUs
@@ -255,13 +232,14 @@ $(call target_variants,$(UT_SCRIPT_LISTS)):
 # see we only use testdelegated_smallmtu
 test: testloop \
       testloop2_rx-x3 testloop2_x3 \
-      testloop_vlan testloop_txvi testmisc \
+      testloop_vlan testloop_txvi \
 			testb2bsb \
       testdelegated_smallmtu \
       testb2b testalts testalts_vlan testalts_txvi testpacketdrill
 
 test_jenkins: testjenkins \
               testscript_x3 \
+              testmisc \
               testscript
 
 

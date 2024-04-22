@@ -21,4 +21,36 @@ echo 4096 > /proc/sys/vm/nr_hugepages
 ifconfig lo up
 shift
 
-exec "$@"
+output="$(timeout ${TEST_TIME_OUT:-120} $@)"
+rc="$?"
+echo "$output"
+if [ "$rc" -ne 0 -a -n "$UT_OUTPUT" ]; then
+  if [ ! -f "$UT_OUTPUT" ]; then
+    output_dir="$(dirname $UT_OUTPUT)"
+    if [ -n "$output_dir" -a ! -d "$output_dir" ]; then
+      mkdir -p "$output_dir"
+    fi
+    touch "$UT_OUTPUT"
+  fi
+
+  echo "# Failed \`$(basename $@)\` in \`$TEST_TARGET\`" >> "$UT_OUTPUT"
+  if [ "$rc" -eq 124 ]; then
+    echo "Test timed out (rc=$rc)." >> "$UT_OUTPUT"
+  else
+    echo "Test returned $rc." >> "$UT_OUTPUT"
+  fi
+
+  echo "## Suggested Reproducer" >> "$UT_OUTPUT"
+  echo "\`\`\`" >> "$UT_OUTPUT"
+  echo "sudo env EF_VI_CTPIO_MODE=$EF_VI_CTPIO_MODE \\" >> "$UT_OUTPUT"
+  echo "  ZF_ATTR=\"$ZF_ATTR\" \\" >> "$UT_OUTPUT"
+  echo "  EXTRA_ZF_ATTR=\"$EXTRA_ZF_ATTR\" \\" >> "$UT_OUTPUT"
+  echo "  $@" >> "$UT_OUTPUT"
+  echo "\`\`\`" >> "$UT_OUTPUT"
+
+  echo "## Test Log" >> "$UT_OUTPUT"
+  echo "\`\`\`" >> "$UT_OUTPUT"
+  echo "$output" >> "$UT_OUTPUT"
+  echo "\`\`\`" >> "$UT_OUTPUT"
+fi
+exit 0
