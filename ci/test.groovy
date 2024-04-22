@@ -159,13 +159,16 @@ nm.slack_notify() {
           dir('test-results') { // ensure folder exists
           }
           // Makefiles do not support gcov build yet
-          sh """#!/bin/bash
+          def rc = sh(script: """#!/bin/bash
             export CC=${CC}
             export ONLOAD_TREE=\$PWD/onload
             export ZF_DEVEL=1
             export TEST_THREAD_NAME=zf
             make -k -C tcpdirect test_jenkins
-          """
+          """, returnStatus: true)
+          if (rc != 0) {
+            unstable("not all tests passed")
+          }
         }
       },
     )
