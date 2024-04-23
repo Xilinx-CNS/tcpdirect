@@ -136,11 +136,6 @@ int zf_attr_alloc(struct zf_attr** attr_out)
       zf_attr_from_str(attr, default_attr_str) < 0 ) {
     return -EINVAL;
   }
-
-  /* Set global attributes */
-  zf_log_level = attr->log_level;
-  zf_log_format = attr->log_format;
-
   return 0;
 }
 
@@ -220,6 +215,8 @@ int zf_attr_set_int(struct zf_attr* attr, const char* name, int64_t val)
       }
       int* pi = (int*) get_field(attr, f);
       *pi = (int) val;
+      if( strcmp("log_format", f->name) == 0 )
+        zf_log_format = (int)val;
       return 0;
     }
     case zf_attr_type_str:
@@ -234,6 +231,8 @@ int zf_attr_set_int(struct zf_attr* attr, const char* name, int64_t val)
     {
       uint64_t* pb = (uint64_t*) get_field(attr, f);
       *pb = (uint64_t) val;
+      if( strcmp("log_level", f->name) == 0 )
+        zf_log_level = (uint64_t)val;
       return 0;
     }
     default:
@@ -255,10 +254,16 @@ int zf_attr_get_int(struct zf_attr* attr, const char* name, int64_t* val)
     return -ENOENT;
   switch( f->type ) {
   case zf_attr_type_int:
-    *val = *(int*)get_field(attr, f);
+    if( strcmp("log_format", f->name) == 0 )
+      *val = zf_log_format;
+    else
+      *val = *(int*)get_field(attr, f);
     return 0;
   case zf_attr_type_bitmask:
-    *val = *(uint64_t*)get_field(attr, f);
+    if( strcmp("log_level", f->name) == 0 )
+      *val = zf_log_level;
+    else
+      *val = *(uint64_t*)get_field(attr, f);
     return 0;
   default:
     return -EINVAL;
@@ -279,12 +284,23 @@ int zf_attr_set_str(struct zf_attr* attr, const char* name, const char* val)
     char** p = get_field_str(attr, f);
     free(*p);
     if( val != NULL ) {
+      if( strcmp("log_file", f->name) == 0 ) {
+        int rc = zf_log_redirect(val);
+        if( rc < 0 ) {
+          zf_log_stack_err(NO_STACK, "%s: Failed to redirect logging: %s\n",
+                          __func__, strerror(-rc));
+          /* Failure here is non-fatal. */
+          *p=NULL;
+          return rc;
+        }
+      }
       *p = strdup(val);
       if( *p == NULL )
         return -ENOMEM;
     }
     else
       *p = NULL;
+
     return 0;
   }
   return -ENOENT;
@@ -300,7 +316,12 @@ int zf_attr_get_str(struct zf_attr* attr, const char* name, char** val)
   switch( f->type ) {
   case zf_attr_type_str: {
     char** p = get_field_str(attr, f);
-    if( *p != NULL ) {
+    if( strcmp("log_file", f->name) == 0 ) {
+      *val = strdup(zf_log_file_name);
+      if( *val == NULL )
+        return -ENOMEM;
+    }
+    else if( *p != NULL ) {
       *val = strdup(*p);
       if( *val == NULL )
         return -ENOMEM;
