@@ -50,6 +50,10 @@ jobs:
         with:
           path: tcpdirect
 
+      - name: foo
+        run: |
+          echo "hello world"
+
       - name: onload checkout
         uses: actions/checkout@v4
         with:
