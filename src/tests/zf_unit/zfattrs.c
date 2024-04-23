@@ -14,7 +14,7 @@ struct attr_value {
 
 struct attr_value test_attrs[] = {
   { "log_level", 0x7777 },
-  { "log_format", 0 },
+  { "log_format", 15 },
   { "log_to_kmsg", 1 },
   { "tcp_delayed_ack", 0 },
   { "tcp_wait_for_time_wait", 1 },
