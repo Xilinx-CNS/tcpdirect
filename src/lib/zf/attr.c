@@ -220,6 +220,8 @@ int zf_attr_set_int(struct zf_attr* attr, const char* name, int64_t val)
       }
       int* pi = (int*) get_field(attr, f);
       *pi = (int) val;
+      if( strcmp("log_format", name) == 0 )
+        zf_log_format = (int)val;
       return 0;
     }
     case zf_attr_type_str:
@@ -234,6 +236,8 @@ int zf_attr_set_int(struct zf_attr* attr, const char* name, int64_t val)
     {
       uint64_t* pb = (uint64_t*) get_field(attr, f);
       *pb = (uint64_t) val;
+      if( strcmp("log_level", name) == 0 )
+        zf_log_level = (uint64_t)val;
       return 0;
     }
     default:
