@@ -2222,7 +2222,7 @@ static int emu_ef_vi_alloc_from_pd(ef_vi* vi, ef_driver_handle vi_dh,
         vi->vi_rxq.mask = evi->rxq.total_buffers - 1;
         evi->rxq.superbuf_pkts = 512;
         evi->rxq.rollover_pkts = 1031; /* arbitrary, not a multiple of superbuf_pkts */
-        evi->ep_state.rxq.rxq_ptr[0].next = 1 + evi->rxq.superbuf_pkts;
+        evi->ep_state.rxq.rxq_ptr[0].meta_pkt = 1 + evi->rxq.superbuf_pkts;
         evi->rxq.ptr = EFCT_RX_HEADER_NEXT_FRAME_LOC_1;
 
         /* wrapping big_buf_ptr */
