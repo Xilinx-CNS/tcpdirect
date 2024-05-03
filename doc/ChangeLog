@@ -3,7 +3,10 @@ tcpdirect-8.1.3
 
 See corresponding onload-8.1.3 changelog for changes in OS support.
 
-Placeholder for Bug fixes:
+Changes:
+
+ON-13593: add udp_ttl attribute to control TTL on sent UDP packets
+ON-15421: stop exporting ef_vi symbols in the dynamic library
 
 
 tcpdirect-8.1.2.38
