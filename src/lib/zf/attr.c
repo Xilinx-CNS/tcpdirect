@@ -126,6 +126,7 @@ static struct zf_attr* __zf_attr_alloc(void)
 int zf_attr_alloc(struct zf_attr** attr_out)
 {
   struct zf_attr* attr = __zf_attr_alloc();
+  zf_log_stderr(); /*log_file is static and we want default behaviour for new set of attributes*/
   *attr_out = attr;
   if( attr == NULL )
     return -ENOMEM;
@@ -281,14 +282,25 @@ int zf_attr_set_str(struct zf_attr* attr, const char* name, const char* val)
       return -ENOMSG;
     }
     char** p = get_field_str(attr, f);
-    free(*p);
     if( val != NULL ) {
+      if( strcmp(name, "log_file")==0 ) {
+        int rc = zf_log_redirect(val);
+        if( rc < 0 ) {
+          zf_log_stack_err(NO_STACK, "%s: Failed to redirect logging: %s\n",
+                          __func__, strerror(-rc));
+          /* Failure here is non-fatal. */
+          return rc;
+        }
+      }
+      free(*p);
       *p = strdup(val);
       if( *p == NULL )
         return -ENOMEM;
     }
-    else
+    else {
+      free(*p);
       *p = NULL;
+    }
     return 0;
   }
   return -ENOENT;

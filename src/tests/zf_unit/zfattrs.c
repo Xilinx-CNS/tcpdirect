@@ -16,6 +16,7 @@ struct attr_value test_attrs[] = {
   { "log_level", 0x7777 },
   { "log_format", 15 },
   { "log_to_kmsg", 1 },
+  { "log_file", 0 },
   { "tcp_delayed_ack", 0 },
   { "tcp_wait_for_time_wait", 1 },
   { "tcp_timewait_ms", ZF_TCP_TIMEWAIT_TIME_MS / 2 },
@@ -34,12 +35,14 @@ struct attr_value test_attrs[] = {
   { "alt_count", 1 },
 };
 
+char *tmp_log_dir;
 
 static int set_test_attrs(struct zf_attr* attr)
 {
   int num_attrs = sizeof(test_attrs) / sizeof(test_attrs[0]);
   unsigned int seed = zf_frc64();
   int random = rand_r(&seed);
+  static int file_uid=0;
 
   /* Make sure the 32-bit random number will cover all attributes */
   zf_assert_le(num_attrs, 32);
@@ -55,7 +58,16 @@ static int set_test_attrs(struct zf_attr* attr)
     if( (random & (1 << i)) == 0 )
       continue;
 
-    rc = zf_attr_set_int(attr, test_attrs[i].name, test_attrs[i].value);
+    if( strcmp("log_file", test_attrs[i].name)==0 ) {
+      char tmp_file[40]="";
+      strncat(tmp_file, tmp_log_dir, sizeof(tmp_file)-1);
+      int slen=strlen(tmp_file);
+      snprintf(&tmp_file[slen],sizeof(tmp_file)-slen,"/file_%i.log",file_uid++);
+      rc = zf_attr_set_str(attr, test_attrs[i].name, tmp_file);
+    }
+    else
+      rc = zf_attr_set_int(attr, test_attrs[i].name, test_attrs[i].value);
+
     if( rc != 0 )
       return rc;
   }
@@ -161,6 +173,12 @@ static void test(struct zf_stack* stack, struct zf_attr* attr,
 
 int main(void)
 {
+  char log_template[]="/tmp/logfileXXXXXX";
+
+  tmp_log_dir = mkdtemp(log_template);
+  if(  tmp_log_dir == NULL )
+    return errno;
+
   plan(TESTS_PER_ITER * ITERS);
 
   int rc = zf_init();
