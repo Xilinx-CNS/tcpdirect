@@ -23,6 +23,7 @@ static void zf_tcp_free(struct zf_stack* stack, struct zf_tcp* tcp)
   /* In case zocket was never connected but bound we need to free port
    * the same applies to zft_handle */
   zfrr_release_port(stack, rx_res);
+  memset(&tcp->laddr, 0, sizeof(tcp->laddr));
 
   if( tcp->eof_pkt != PKT_INVALID ) {
     zf_pool_free_pkt(&stack->pool, tcp->eof_pkt);
