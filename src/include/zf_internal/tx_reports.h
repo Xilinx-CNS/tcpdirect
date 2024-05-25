@@ -224,10 +224,16 @@ complete(struct queue* q, unsigned z, bool tcp, ef_event* ev)
   zf_assert(node->zock == zock_id(z, tcp));
   zock->pending = node->zock_next;
 
-  node->report.timestamp = {ev->tx_timestamp.ts_sec, ev->tx_timestamp.ts_nsec};
+  node->report.timestamp = {
+    .tv_sec  = EF_EVENT_TX_WITH_TIMESTAMP_SEC(*ev),
+    .tv_nsec = EF_EVENT_TX_WITH_TIMESTAMP_NSEC(*ev),
+  };
+
+  /* While ef_vi and TCPDirect have the same sync flags layout they can be
+   * copied without translation. */
   static_assert(EF_VI_SYNC_FLAG_CLOCK_SET == ZF_PKT_REPORT_CLOCK_SET);
   static_assert(EF_VI_SYNC_FLAG_CLOCK_IN_SYNC == ZF_PKT_REPORT_IN_SYNC);
-  node->report.flags |= (ev->tx_timestamp.ts_nsec & 3);
+  node->report.flags |= EF_EVENT_TX_WITH_TIMESTAMP_SYNC_FLAGS(*ev);
 }
 
 
