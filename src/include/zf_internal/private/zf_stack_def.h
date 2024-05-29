@@ -260,6 +260,29 @@ struct zf_stack_impl {
   int tcp_retries;
   int arp_reply_timeout;
 
+  /*adding all the zf attributes*/
+  int sti_ctpio;
+  char sti_ctpio_mode[8];  
+  int sti_alt_buf_size;
+  int sti_alt_count;
+  int sti_rx_ring_max;
+  int sti_rx_ring_refill_batch_size;
+  int sti_rx_timestamping;
+  int sti_tcp_alt_ack_rewind;
+  int sti_tcp_delayed_ack;
+  int sti_tcp_finwait_ms;
+  int sti_tcp_timewait_ms;
+  int sti_tcp_wait_for_time_wait; 
+  int sti_tx_ring_max;
+  int sti_tx_timestamping;
+  int sti_ctpio_max_frame_len;
+  int sti_force_separate_tx_vi;
+  int sti_pio;
+  int sti_reactor_spin_count;
+  int sti_rx_ring_refill_interval;
+  int sti_udp_ttl;
+  uint64_t sti_log_level;
+  
   int n_alts; /* Number of alternatives actually allocated to this VI */
   struct zf_alt alt[zf_stack::MAX_ALTERNATIVES]; /* indexed by ef_vi ID */
   struct zf_alt_buffer_model alt_buf_model;
