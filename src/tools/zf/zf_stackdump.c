@@ -17,6 +17,7 @@ static void usage(int rc)
   zf_log(NULL, "  help       Print this usage information\n");
   zf_log(NULL, "  list       List stack(s)\n");
   zf_log(NULL, "  dump       Show state of stack(s)\n");
+  zf_log(NULL, "  attr       Show attributes of stack(s)\n");
   zf_log(NULL, "  version    Print tcpdirect version information\n");
   zf_log(NULL, "\n");
   zf_log(NULL, "The default command is 'list'.  Commands iterate over all\n");
@@ -56,6 +57,8 @@ int main(int argc, char *argv[])
       version();
     else if( strcmp(argv[0], "help") == 0 )
       usage(0);
+    else if( strcmp(argv[0], "attr") == 0 )
+      cmd = zf_stack_dump_attr;
     else
       usage(1);
 
