@@ -12,12 +12,12 @@ UT_LOOP := zftest zfinit zfudprx zf_superbuf_reuse zftcprx zftcpcopyrx \
 UT_LOOP2 := zftest zfinit zfudprx zf_superbuf_reuse zftcprx zftcpcopyrx \
             zftcptx zfmulticast zftcp_muxer \
             zfds efrxtimestamping zftcprx_on14495
-UT_JENKINS := zfstackdump zftimestamping
+UT_LOOP_JENKINS := zftimestamping
 UT_MISC := zfpool zfmuxer zfrxtable zfzockbuf \
           zfmultizock zftimers zflisten zfbackingsock zfzockfree \
           zfquiesce_waittw zfquiesce_nowaittw zfstackfree \
           zfshm zfattrs zfattr_getset \
-          zfpending zftcp_full_sendq \
+          zfpending zftcp_full_sendq zfstackdump \
           zfbonding zfbonding_lacp zfmultizock_bond # these bonding tests should go to UT_LOOP but fail with vlan
 UT_DELEGATED := zfdelegated
 UT_B2B := zftcptimeouts zfovl zfreactorloop zfonlystack
@@ -39,7 +39,7 @@ UT_ALL := $(sort \
   $(UT_B2B_SB) \
   $(UT_ALTS) \
   $(UT_OTHER) \
-  $(UT_JENKINS))
+  $(UT_LOOP_JENKINS))
 
 
 UT_OBJS := $(UT_ALL:%=$(OBJ_CURRENT)/%.o)
@@ -125,13 +125,14 @@ UT_ALL_NONSCRIPT_TARGETS := $(UT_ALL_LOOP_TARGETS) $(UT_ALL_MISC_TARGETS) \
 		  $(UT_ALL_B2B_SB_TARGETS)
 UT_ALL_SCRIPT_TARGETS := $(call target_explode,testscript,$(UT_SCRIPTS)) \
                          $(call target_variants,testpacketdrill,$(UT_SCRIPTS))
-UT_ALL_JENKINS_TARGETS := $(call target_explode,testjenkins,$(UT_JENKINS)) 
+UT_ALL_JENKINS_LOOP_TARGETS := $(call target_explode,testjenkins,$(UT_LOOP_JENKINS))
 UT_ALL_TARGETS := $(UT_ALL_NONSCRIPT_TARGETS) \
                   $(UT_ALL_SCRIPT_TARGETS)
 
 
 # Associate targets of each list with their base configuration
 $(UT_ALL_LOOP_TARGETS) : ATTR_LIST += $(TEST_LOOP_ZF_ATTR)
+$(UT_ALL_JENKINS_LOOP_TARGETS) : ATTR_LIST += $(TEST_LOOP_ZF_ATTR)
 $(UT_ALL_MISC_TARGETS) : ATTR_LIST += $(TEST_LOOP_ZF_ATTR)
 # zfdelegated needs the send queue to be smaller than the TCP window, so that
 # send space is the limiting factor. Because the send queue is a fixed number
@@ -177,7 +178,7 @@ TEST_TIME_OUT=120
 
 $(call target_variants,testloop): $(UT_LOOP:%=$(UT_BINDIR)/%)
 $(call target_variants,testloop2): $(UT_LOOP2:%=$(UT_BINDIR)/%)
-$(call target_variants,testjenkins): $(UT_JENKINS:%=$(UT_BINDIR)/%)
+$(call target_variants,testjenkins): $(UT_LOOP_JENKINS:%=$(UT_BINDIR)/%)
 $(call target_variants,testmisc): $(UT_MISC:%=$(UT_BINDIR)/%)
 $(call target_variants,testdelegated): $(UT_DELEGATED:%=$(UT_BINDIR)/%)
 $(call target_variants,testb2bsb): $(UT_B2B_SB:%=$(UT_BINDIR)/%)
