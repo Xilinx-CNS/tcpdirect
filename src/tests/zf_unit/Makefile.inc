@@ -233,13 +233,12 @@ $(call target_variants,$(UT_SCRIPT_LISTS)):
 test: testloop \
       testloop2_rx-x3 testloop2_x3 \
       testloop_vlan testloop_txvi \
-			testb2bsb \
+      testb2bsb testmisc \
       testdelegated_smallmtu \
       testb2b testalts testalts_vlan testalts_txvi testpacketdrill
 
 test_jenkins: testjenkins \
               testscript_x3 \
-              testmisc \
               testscript
 
 

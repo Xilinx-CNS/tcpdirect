@@ -1922,6 +1922,7 @@ zf_emu_remove_all_intfs(void)
 
   memset(&env->cplane_mibs, 0, sizeof(env->cplane_mibs));
   env->cplane_mibs.dim.llap_max = env->cplane_mibs.LLAP_TABLE_SIZE;
+  env->cplane_mibs.dim.hwport_max = env->cplane_mibs.LLAP_TABLE_SIZE;
 }
 
 
