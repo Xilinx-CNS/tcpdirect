@@ -216,7 +216,7 @@ $(call target_variants,$(UT_NONSCRIPT_LISTS)):
 $(call target_variants,$(UT_SCRIPT_LISTS)):
 	@echo "Test target: $@"
 	sudo env $(UT_ENV) $(ENV) EXTRA_$(call buildattrs) \
-		UT_OUTPUT=$(UT_OUTPUT) TEST_TIME_OUT=$(TEST_TIME_OUT) \
+		UT_OUTPUT=$(UT_OUTPUT) TEST_TIME_OUT=$(TEST_TIME_OUT) TEST_TARGET="$@" \
 		timeout $(HARNESS_TIME_OUT) \
 		prove --exec \
 		"$(NETNS_SCRIPT)" \
