@@ -21,6 +21,8 @@ echo 4096 > /proc/sys/vm/nr_hugepages
 ifconfig lo up
 shift
 
+rm -f /dev/shm/zf_emu_*
+
 output="$(timeout ${TEST_TIME_OUT:-120} $@)"
 rc="$?"
 echo "$output"
