@@ -32,6 +32,9 @@ function print_result {
 delay=0.1
 t=1
 
+rm -f /dev/shm/zf_emu_*
+
+echo 1..1
 echo "Running zfsend test on b2b interface..."
 # Start the receiver
 echo "Starting UDP receive zocket..."
@@ -42,11 +45,8 @@ sleep ${delay}
 echo "Starting UDP transmit zocket..."
 ZF_ATTR="emu=1;interface=b2b1;emu_shmname=udpsanity;${EXTRA_ZF_ATTR}" /usr/bin/timeout $t "${zfsend}" -u -i 10 127.0.0.1:20102 127.0.0.1:20101
 
-echo 1..1
 print_result "b2b"
 
-if [ -a /dev/shm/zf_emu_udpsanity ]; then
-	unlink /dev/shm/zf_emu_udpsanity
-fi
+rm -f /dev/shm/zf_emu_*
 
 exit $rc # the cleanup might fail, not a problem in namespace
