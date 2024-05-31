@@ -9,6 +9,7 @@ function sudo() {
 }
 fi
 
+rc=0
 dir=$(dirname "$0")
 zfsend="${dir}/../zf_apps/static/zfsend"
 zfsink="${dir}/../zf_apps/static/zfsink"
@@ -18,6 +19,7 @@ function print_result {
     if [ $rtn -eq 0 ]; then
         echo "ok - zfsend with shim: $1"
     else
+        rc=$rtn
         echo "not ok - zfsend with shim: $1 $2"
         echo "#   Failed test 'zfsend with shim: $1'"
         if [ $rtn -eq 124 ]; then
@@ -47,4 +49,4 @@ if [ -a /dev/shm/zf_emu_udpsanity ]; then
 	unlink /dev/shm/zf_emu_udpsanity
 fi
 
-exit 0 # the cleanup might fail, not a problem in namespace
+exit $rc # the cleanup might fail, not a problem in namespace

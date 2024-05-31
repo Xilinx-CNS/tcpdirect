@@ -9,6 +9,7 @@ function sudo() {
 }
 fi
 
+rc=0
 dir=$(dirname "$0")
 zfudppingpong="${dir}/../zf_apps/static/zfudppingpong"
 
@@ -17,6 +18,7 @@ function print_result {
     if [ $rtn -eq 0 ]; then
         echo "ok - zfudppingpong with shim: $1"
     else
+        rc=$rtn
         echo "not ok - zfudppingpong with shim: $1 $2"
         echo "#   Failed test 'zfudppingpong with shim: $1'"
         if [ $rtn -eq 124 ]; then
@@ -31,9 +33,7 @@ ZF_ATTR="emu=2;interface=lo;${EXTRA_ZF_ATTR}" /usr/bin/timeout $t "${zfudppingpo
 
 print_result "loopback"
 
-if [ -a /dev/shm/zf_emu_any ]; then
-	unlink /dev/shm/zf_emu_any
-fi
+rm -f /dev/shm/zf_emu_*
 
 # Delay between running "pong" and "ping" processes.
 delay=1.0
@@ -69,4 +69,4 @@ wait
 sudo ifconfig tunzf down
 sudo ip tuntap delete mode tun tunzf
 sudo sh -c "echo 0 > /proc/sys/net/ipv4/ip_nonlocal_bind"
-exit 0 # the cleanup might fail, not a problem in namespace
+exit $rc # the cleanup might fail, not a problem in namespace
