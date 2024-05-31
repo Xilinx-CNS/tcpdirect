@@ -94,36 +94,51 @@ sudo ifconfig tunzf 192.168.0.1/24 up
 sudo sh -c "echo 1 > /proc/sys/net/ipv4/ip_nonlocal_bind"
 
 
+rm -f /dev/shm/zf_emu_*
+
 # First a normal test
 data_pong ""
 
+rm -f /dev/shm/zf_emu_*
+
 # a normal test with small MTU
 ZF_ATTR_EXTRA="emu_mtu=576" data_pong "small MTU"
+
+rm -f /dev/shm/zf_emu_*
 
 # Then with some loss
 sudo tc qdisc add dev tunzf root netem loss random "2%"
 data_pong "with loss"
 sudo tc qdisc del dev tunzf root netem loss random "2%"
 
+rm -f /dev/shm/zf_emu_*
+
 # Then with some reordering
 sudo tc qdisc add dev tunzf root netem delay 1ms reorder "90%" "50%"
 data_pong "with reordering"
 sudo tc qdisc del dev tunzf root netem delay 1ms reorder "90%" "50%"
+
+rm -f /dev/shm/zf_emu_*
 
 # Then with some duplication
 sudo tc qdisc add dev tunzf root netem duplicate "2%"
 data_pong "with duplication"
 sudo tc qdisc del dev tunzf root netem duplicate "2%"
 
+rm -f /dev/shm/zf_emu_*
+
 # Then with all the plagues
 sudo tc qdisc add dev tunzf root netem loss random "2%" delay 1ms reorder "90%" "50%" duplicate "2%"
 data_pong "with all the plagues"
+
+rm -f /dev/shm/zf_emu_*
 
 # Then with all the plagues and small MTU
 # Note: we want to execute all the code paths small MSS might affect
 ZF_ATTR_EXTRA="emu_mtu=576" data_pong "with all the plagues and small MTU # TODO bug 66429"
 sudo tc qdisc del dev tunzf root
 
+rm -f /dev/shm/zf_emu_*
 
 rm $datafile_in
 rm $datafile_out
@@ -132,7 +147,6 @@ sudo ifconfig tunzf down
 sudo ip tuntap delete mode tun tunzf
 sudo sh -c "echo 0 > /proc/sys/net/ipv4/ip_nonlocal_bind"
 
-rm -f /dev/shm/zf_emu_*
 port=$(get_port)
 
 ZF_ATTR="emu=1;interface=b2b0;emu_shmname=tcpsanity;${EXTRA_ZF_ATTR}" /usr/bin/timeout ${pong_timeout} \
@@ -149,6 +163,7 @@ print_result $? "latency ping-pong using back-to-back shim"
 kill $pid &> /dev/null
 wait
 
+rm -f /dev/shm/zf_emu_*
 
 # Run zftcppingpong2 via a pair of tun interfaces so that netem can be used
 sudo ip tuntap add mode tun user $(id -nu) tunzf1
@@ -180,6 +195,8 @@ ZF_ATTR="emu=3;interface=tunzf2;${EXTRA_ZF_ATTR}" /usr/bin/timeout ${ping_timeou
 print_result $? "latency ping-pong with loss using tun"
 kill $pid &> /dev/null
 wait
+
+rm -f /dev/shm/zf_emu_*
 
 sudo tc qdisc del dev tunzf1 root netem loss random "1%"
 sudo ifconfig tunzf1 down
