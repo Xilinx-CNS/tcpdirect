@@ -28,6 +28,9 @@ function print_result {
 }
 
 echo "1..4"
+
+rm -f /dev/shm/zf_emu_*
+
 t=5
 ZF_ATTR="emu=2;interface=lo;${EXTRA_ZF_ATTR}" /usr/bin/timeout $t "${zfudppingpong}" -i 100000 ping 127.0.0.1:20101 127.0.0.1:20101
 
@@ -51,6 +54,8 @@ print_result "back to back ping"
 wait
 print_result "back to back pong"
 
+rm -f /dev/shm/zf_emu_*
+
 sudo ip tuntap add mode tun user $(id -nu) tunzf
 sudo ifconfig tunzf 192.168.0.1/24 up
 sudo sh -c "echo 1 > /proc/sys/net/ipv4/ip_nonlocal_bind"
@@ -66,6 +71,9 @@ print_result "using tun interface "
 
 kill $pid
 wait
+
+rm -f /dev/shm/zf_emu_*
+
 sudo ifconfig tunzf down
 sudo ip tuntap delete mode tun tunzf
 sudo sh -c "echo 0 > /proc/sys/net/ipv4/ip_nonlocal_bind"
