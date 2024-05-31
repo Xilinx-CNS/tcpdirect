@@ -113,8 +113,10 @@ production libraries:
   attribute, as described in the \ref attributes chapter.
 - As a convenience, the `-l` option to the `zf_debug` wrapper will set the
   \attrref{log_level} attribute to the specified value.
-- Changing the \attrref{log_level} attribute while the application is running
-  has no effect.
+- After the library initialization, the attributes attrref{log_level}, \attrref{log_format}
+ attributes can be changed programmatically while the application is running using 
+ \attrref{zf_attr_set_int}.  Similarly, \attrref{log_file} can be modified
+ using \attrref{zf_attr_set_str}.
 
 \section using_general General
 

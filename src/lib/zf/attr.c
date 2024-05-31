@@ -126,6 +126,7 @@ static struct zf_attr* __zf_attr_alloc(void)
 int zf_attr_alloc(struct zf_attr** attr_out)
 {
   struct zf_attr* attr = __zf_attr_alloc();
+  zf_log_stderr(); /*log_file is static and we want default behaviour for new set of attributes*/
   *attr_out = attr;
   if( attr == NULL )
     return -ENOMEM;
@@ -220,6 +221,8 @@ int zf_attr_set_int(struct zf_attr* attr, const char* name, int64_t val)
       }
       int* pi = (int*) get_field(attr, f);
       *pi = (int) val;
+      if( strcmp("log_format", name) == 0 )
+        zf_log_format = (int)val;
       return 0;
     }
     case zf_attr_type_str:
@@ -234,6 +237,8 @@ int zf_attr_set_int(struct zf_attr* attr, const char* name, int64_t val)
     {
       uint64_t* pb = (uint64_t*) get_field(attr, f);
       *pb = (uint64_t) val;
+      if( strcmp("log_level", name) == 0 )
+        zf_log_level = (uint64_t)val;
       return 0;
     }
     default:
@@ -277,14 +282,25 @@ int zf_attr_set_str(struct zf_attr* attr, const char* name, const char* val)
       return -ENOMSG;
     }
     char** p = get_field_str(attr, f);
-    free(*p);
     if( val != NULL ) {
+      if( strcmp(name, "log_file")==0 ) {
+        int rc = zf_log_redirect(val);
+        if( rc < 0 ) {
+          zf_log_stack_err(NO_STACK, "%s: Failed to redirect logging: %s\n",
+                          __func__, strerror(-rc));
+          /* Failure here is non-fatal. */
+          return rc;
+        }
+      }
+      free(*p);
       *p = strdup(val);
       if( *p == NULL )
         return -ENOMEM;
     }
-    else
+    else {
+      free(*p);
       *p = NULL;
+    }
     return 0;
   }
   return -ENOENT;
