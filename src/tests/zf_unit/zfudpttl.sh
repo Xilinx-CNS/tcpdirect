@@ -9,6 +9,7 @@ function sudo() {
 }
 fi
 
+rc=0
 dir=$(dirname "$0")
 zfsend="${dir}/../zf_apps/static/zfsend"
 
@@ -21,6 +22,7 @@ function print_result {
     if [ $rtn -eq 0 ]; then
         echo "ok - zfudpttl with shim: $ttl"
     else
+        rc=$rtn
         echo "not ok - zfudpttl with shim: $ttl $rtn"
         echo "#   Failed test 'zfudpttl with shim: $ttl'"
     fi
@@ -77,4 +79,4 @@ print_result $ttl
 sudo ifconfig tunzf down
 sudo ip tuntap delete mode tun tunzf
 sudo sh -c "echo 0 > /proc/sys/net/ipv4/ip_nonlocal_bind"
-exit 0 # the cleanup might fail, not a problem in namespace
+exit $rc # the cleanup might fail, not a problem in namespace

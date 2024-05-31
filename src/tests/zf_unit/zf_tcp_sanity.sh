@@ -9,6 +9,7 @@ function sudo() {
 }
 fi
 
+rc=0
 dir=$(dirname "$0")
 zftcppingpong2="${dir}/zftcppingpong2"
 
@@ -35,6 +36,7 @@ function print_result {
     if [ $rtn -eq 0 ]; then
         echo "ok - ${test_name}"
     else
+        rc=$rtn
         echo "not ok - ${test_name}"
         echo "#   Failed test '${test_name}'"
         if [ $rtn -eq 124 ]; then
@@ -187,4 +189,4 @@ sudo ip tuntap delete mode tun tunzf2
 sudo sh -c "echo $old_ip_forward > /proc/sys/net/ipv4/ip_forward"
 sudo sh -c "echo $old_ip_nonlocal_bind > /proc/sys/net/ipv4/ip_nonlocal_bind"
 # $INTF/route_localnet settings are gone as tun interfaces have been deleted
-exit 0 # the cleanup might fail, not a problem in namespace
+exit $rc # the cleanup might fail, not a problem in namespace
