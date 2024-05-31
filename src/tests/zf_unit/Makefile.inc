@@ -194,11 +194,6 @@ ifeq ("$(wildcard ../packetdrill-tcpdirect/Makefile.inc)", "")
 endif
 $(call target_explode,testpacketdrill): | shim packetdrill
 
-$(call target_variants,$(UT_ALL_LISTS)): | pretest
-
-pretest: $(SRC_CURRENT)/pretest.sh
-	sudo $<
-
 NETNS_SCRIPT := $(SRC_CURRENT)/netns.sh
 
 buildattrs = ZF_ATTR="$(subst $(space),;,$(ATTR_LIST))"
