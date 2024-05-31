@@ -83,6 +83,7 @@ static void tx_report_batch(struct zf_tx_reports::queue* reports, int capacity,
         ev.tx_timestamp.type = EF_EVENT_TYPE_TX_WITH_TIMESTAMP;
         ev.tx_timestamp.ts_sec = r.timestamp.tv_sec;
         ev.tx_timestamp.ts_nsec = r.timestamp.tv_nsec;
+        ev.tx_timestamp.ts_flags = 0;
         zf_tx_reports::complete(reports, z/2, z%2, &ev);
       }
     }
