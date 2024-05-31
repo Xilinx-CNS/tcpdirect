@@ -64,6 +64,7 @@ static int __zft_handle_free(zf_stack* stack, zf_tcp* tcp)
 
   zf_stack_tcp_to_res(stack, tcp, &rx_res);
   zfrr_release_port(stack, rx_res);
+  memset(&tcp->laddr, 0, sizeof(tcp->laddr));
 
   if( tcp->eof_pkt != PKT_INVALID ) {
     zf_pool_free_pkt(&stack->pool, tcp->eof_pkt);

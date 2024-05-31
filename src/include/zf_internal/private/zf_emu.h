@@ -4,6 +4,17 @@
 #define __ZF_INTERNAL_ZF_EMU_H__
 
 #include <cplane/mib.h>
+
+#ifdef __cplusplus
+/* Needed because in C++ an empty struct has a non-zero size. Additionally, a
+ * zero-length array is used instead of a standard flexible array member so that
+ * it can be used in the middle of a struct without gcc complaining. */
+#undef __DECLARE_FLEX_ARRAY
+#define __DECLARE_FLEX_ARRAY(TYPE, NAME)	\
+	struct { \
+		TYPE NAME[0]; \
+	}
+#endif
 #include <etherfabric/internal/efct_uk_api.h>
 
 /* These interface names are used for the default configuration of the "back-

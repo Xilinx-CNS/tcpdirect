@@ -1,28 +1,28 @@
 TCPDirect-8.1.3
 ===============
 
-  Placeholder for minor update release of TCPDirect to match Onload-8.1.3 and
+  This is a minor update release of TCPDirect to match Onload-8.1.3 and
   including bug fixes since TCPDirect-8.1.2.38. See changelog for details.
 
 
 TCPDirect-8.1.2.38
 ==================
 
-  This is a minor update release of TCP Direct to match Onload-8.1.2 and
+  This is a minor update release of TCPDirect to match Onload-8.1.2 and
   including bug fixes since TCPDirect-8.1.1.23. See changelog for details.
 
 
 TCPDirect-8.1.1.23
 ==================
 
-  This is a minor update release of TCP Direct to match Onload-8.1.1,
+  This is a minor update release of TCPDirect to match Onload-8.1.1,
   also including a bug fix. See changelog for details.
 
 
 TCPDirect-8.1.0.19
 ==================
 
-  This is a feature release of TCP Direct to be used with Onload-8.1.0.
+  This is a feature release of TCPDirect to be used with Onload-8.1.0.
 
 
 TCPDirect-8.0.2.11

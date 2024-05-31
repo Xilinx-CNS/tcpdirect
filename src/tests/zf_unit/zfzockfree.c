@@ -128,9 +128,16 @@ static int create_zocket(struct zf_stack* stack, struct zf_attr* attr,
                          struct zft** tcp_out)
 {
   struct zft_handle* tcp_handle;
+  struct sockaddr_in laddr;
+  socklen_t len = sizeof(laddr);
+
   int rc = zft_alloc(stack, attr, &tcp_handle);
   if( rc < 0 )
     return rc;
+
+  zft_handle_getname(tcp_handle, (struct sockaddr *)&laddr, &len);
+  if( laddr.sin_port != 0 )
+    return -EBUSY;
 
   /* Do a loopback connect.  There's nothing listening, but we don't care: we
    * just want to install the filters. */
@@ -173,10 +180,16 @@ static int create_zocket(struct zf_stack* stack, struct zf_attr* attr,
 {
   (void) local_port_he;
   (void) remote_port_he;
+  struct sockaddr_in laddr;
+  socklen_t len = sizeof(laddr);
 
   int rc = zft_alloc(stack, attr, tcp_handle_out);
   if( rc < 0 )
     return rc;
+
+  zft_handle_getname(*tcp_handle_out, (struct sockaddr *)&laddr, &len);
+  if( laddr.sin_port != 0 )
+    return -EBUSY;
 
   return 0;
 }

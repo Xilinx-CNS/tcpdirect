@@ -16,6 +16,8 @@
 /* prevent ci/driver/ci_efct.h and ci_aux.h from getting included */
 #define CI_DRIVER_CI_EFCT_H
 
+#include <zf_internal/private/zf_emu.h>
+
 #include <ci/tools/sysdep.h>
 #include <ci/tools/debug.h>
 #include <ci/tools/log.h>
