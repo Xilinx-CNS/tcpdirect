@@ -15,6 +15,7 @@ jobs:
     outputs:
       tcpdirectBranch: ${{ steps.tcpdirectBranch.outputs.branch }}
       onloadBranch: ${{ steps.onloadBranch.outputs.branch }}
+      onloadReleaseTag: ${{ steps.onloadReleaseTag.outputs.tag }}
       packetDrillBranch: ${{ steps.packetDrillBranch.outputs.branch }}
     steps:
       - name: tcpdirect
@@ -36,6 +37,10 @@ jobs:
         id: onloadBranch
         run: echo "branch=$(yq -r '.products.Onload.version' < $GITHUB_WORKSPACE/tcpdirect/versions.yaml)" >> "$GITHUB_OUTPUT"
 
+      - name: Extract onload release tag
+        id: onloadReleaseTag
+        run: echo "tag=$(yq -r '.products.Onload.release_tag' < $GITHUB_WORKSPACE/tcpdirect/versions.yaml)" >> "$GITHUB_OUTPUT"
+
       - name: Extract packetDrill branch name
         id: packetDrillBranch
         run: echo "branch=$(yq -r '.products.Packetdrill.version' < $GITHUB_WORKSPACE/tcpdirect/versions.yaml)" >> "$GITHUB_OUTPUT"
@@ -53,11 +58,22 @@ jobs:
           path: tcpdirect
 
       - name: onload checkout
+        id: onloadCheckoutStep
+        continue-on-error: true
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/onload
           path: onload
           ref: ${{ needs.extract_branch_info.outputs.onloadBranch }}
+
+      - name: onload checkout tag
+        if: ${{ steps.onloadCheckoutStep.outcome == 'failure' &&
+                needs.extract_branch_info.output.onloadReleaseTag != 'null' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/onload
+          path: onload
+          ref: ${{ needs.extract_branch_info.outputs.onloadReleaseTag }}
 
       - name: packetdrill checkout
         uses: actions/checkout@v4
