@@ -68,7 +68,7 @@ include src/tests/zf_apps/Makefile.inc
 include src/tests/zf_internal/Makefile.inc
 
 # We use packetdrill for some tests, but can cope without it if not present
-ifneq ("$(wildcard ../packetdrill-tcpdirect)", "")
+ifneq ("$(wildcard ../packetdrill-tcpdirect/Makefile.inc)", "")
 	include ../packetdrill-tcpdirect/Makefile.inc
 endif
 

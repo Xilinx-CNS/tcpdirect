@@ -12,6 +12,8 @@
 #        (e.g. strace or gdb)
 RUN_WITH_LINUX_STACK=${RUN_WITH_LINUX_STACK-0}
 
+rc=0
+
 function print_result {
     rtn=$1
     test_name="$(basename $0) with shim: $2"
@@ -19,6 +21,7 @@ function print_result {
     if [ $rtn -eq 0 ]; then
         echo "ok - ${test_name}"
     else
+        rc=$rtn
         echo "not ok - ${test_name}"
         echo "#   Failed test '${test_name}'"
         if [ $rtn -eq 124 ]; then
@@ -135,4 +138,4 @@ wait $S
 
 # assume cleanup is done by implicit destruction of netns
 
-exit 0
+exit $rc

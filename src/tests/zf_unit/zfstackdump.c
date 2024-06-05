@@ -80,9 +80,9 @@ static void test_stack_version(struct zf_stack* stack, struct zf_attr* attr)
   zf_stack_dump(stack);
   fflush(stdout);
   dup2(stdout_fd, STDOUT_FILENO);
-  fclose(f);
   lseek(1000, 0, SEEK_SET);
-  int rc = system("egrep 'version=.*' <&1000");
+  int rc = system("cat /proc/self/fd/1000 | grep -E 'version=.*'");
+  fclose(f);
 
   cmp_ok(rc, "==", 0, "Version found.");
 }

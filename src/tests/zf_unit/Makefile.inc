@@ -8,10 +8,11 @@
 #    allowing to run subsets of tests with various variants
 UT_LOOP := zftest zfinit zfudprx zf_superbuf_reuse zftcprx zftcpcopyrx \
            zftcptx zfmulticast zftcp_muxer \
-           zfds efrxtimestamping zftimestamping zftcprx_on14495
+           zfds efrxtimestamping zftcprx_on14495
 UT_LOOP2 := zftest zfinit zfudprx zf_superbuf_reuse zftcprx zftcpcopyrx \
             zftcptx zfmulticast zftcp_muxer \
             zfds efrxtimestamping zftcprx_on14495
+UT_LOOP_JENKINS := zftimestamping
 UT_MISC := zfpool zfmuxer zfrxtable zfzockbuf \
           zfmultizock zftimers zflisten zfbackingsock zfzockfree \
           zfquiesce_waittw zfquiesce_nowaittw zfstackfree \
@@ -27,6 +28,7 @@ UT_ALTS := zfalternatives
 UT_OTHER := zftcppingpong2
 UT_SCRIPTS := zfudppingpong.sh zf_tcp_sanity.sh packetdrill.sh zfsend.sh zfudpttl.sh
 
+
 # sort is required to remove duplicates
 UT_ALL := $(sort \
   $(UT_LOOP) \
@@ -36,7 +38,8 @@ UT_ALL := $(sort \
   $(UT_B2B) \
   $(UT_B2B_SB) \
   $(UT_ALTS) \
-  $(UT_OTHER))
+  $(UT_OTHER) \
+  $(UT_LOOP_JENKINS))
 
 
 UT_OBJS := $(UT_ALL:%=$(OBJ_CURRENT)/%.o)
@@ -106,7 +109,7 @@ target_variants_ = $(1) $(foreach v, $(variants), $(1)_$v)
 target_variants = $(foreach t,$(1),$(call target_variants_,$(t)))
 target_explode = $(call target_variants,$(1)) $(call target_variants,$(2:%=run_%))
 
-UT_NONSCRIPT_LISTS := testloop testloop2 testmisc testdelegated testb2b testb2bsb testalts testrxx3
+UT_NONSCRIPT_LISTS := testloop testloop2  testjenkins testmisc testdelegated testb2b testb2bsb testalts testrxx3
 UT_SCRIPT_LISTS := testscript testpacketdrill
 UT_ALL_LISTS = $(UT_NONSCRIPT_LISTS) $(UT_SCRIPT_LISTS)
 
@@ -122,12 +125,14 @@ UT_ALL_NONSCRIPT_TARGETS := $(UT_ALL_LOOP_TARGETS) $(UT_ALL_MISC_TARGETS) \
 		  $(UT_ALL_B2B_SB_TARGETS)
 UT_ALL_SCRIPT_TARGETS := $(call target_explode,testscript,$(UT_SCRIPTS)) \
                          $(call target_variants,testpacketdrill,$(UT_SCRIPTS))
+UT_ALL_JENKINS_LOOP_TARGETS := $(call target_explode,testjenkins,$(UT_LOOP_JENKINS))
 UT_ALL_TARGETS := $(UT_ALL_NONSCRIPT_TARGETS) \
                   $(UT_ALL_SCRIPT_TARGETS)
 
 
 # Associate targets of each list with their base configuration
 $(UT_ALL_LOOP_TARGETS) : ATTR_LIST += $(TEST_LOOP_ZF_ATTR)
+$(UT_ALL_JENKINS_LOOP_TARGETS) : ATTR_LIST += $(TEST_LOOP_ZF_ATTR)
 $(UT_ALL_MISC_TARGETS) : ATTR_LIST += $(TEST_LOOP_ZF_ATTR)
 # zfdelegated needs the send queue to be smaller than the TCP window, so that
 # send space is the limiting factor. Because the send queue is a fixed number
@@ -167,37 +172,13 @@ $(UT_SCRIPT_BINS): $(UT_BINDIR)/%: $(SRC_CURRENT)/%
 # Notably it enforces copying the scripts everytime...
 .PHONY: $(UT_SCRIPT_BINS)
 $(UT_SCRIPT_BINS): zf_apps $(UT_BINDIR)/zftcppingpong2
-ifdef UT_OUTPUT
-PROVE_FLAGS += --formatter TAP::Formatter::JUnit
-UT_OUTPUT_DIR = $(UT_OUTPUT)
-PROVE_REDIRECT = | sed  "s/name=\"build.*zf_unit/name=\"$@/"> $(UT_OUTPUT)/$@.xml
 
-$(filter-out run_%,$(UT_ALL_TARGETS)): | $(UT_OUTPUT_DIR)
-
-$(UT_OUTPUT_DIR):
-	mkdir -p $(UT_OUTPUT_DIR)/valgrind
-#moved valgrind results to separate folder to avoid junit accesing them
-	rm -rf $(UT_OUTPUT)/valgrind/*.xml
-	rm -rf $(UT_OUTPUT)/*.xml
-endif # UT_OUTPUT
-
-ifdef VALGRIND
-VALGRIND_FLAGS = valgrind --tool=memcheck --read-var-info=yes \
-		 --fair-sched=yes --track-fds=yes --xml=yes \
-		 --xml-file=$(UT_OUTPUT_DIR)/valgrind/$@_%p.xml\
-		 --show-mismatched-frees=yes --trace-children=yes\
-		 --undef-value-errors=yes --track-origins=yes \
-		 --leak-check=full --show-leak-kinds=all
-#As these are nightly tests given bit more time to avoid unnecessary timeouts.
-HARNESS_TIME_OUT=10800
-TEST_TIME_OUT=600
-else
 HARNESS_TIME_OUT=480
 TEST_TIME_OUT=120
-endif
 
 $(call target_variants,testloop): $(UT_LOOP:%=$(UT_BINDIR)/%)
 $(call target_variants,testloop2): $(UT_LOOP2:%=$(UT_BINDIR)/%)
+$(call target_variants,testjenkins): $(UT_LOOP_JENKINS:%=$(UT_BINDIR)/%)
 $(call target_variants,testmisc): $(UT_MISC:%=$(UT_BINDIR)/%)
 $(call target_variants,testdelegated): $(UT_DELEGATED:%=$(UT_BINDIR)/%)
 $(call target_variants,testb2bsb): $(UT_B2B_SB:%=$(UT_BINDIR)/%)
@@ -205,17 +186,13 @@ $(call target_variants,testb2b): $(UT_B2B:%=$(UT_BINDIR)/%)
 $(call target_variants,testalts): $(UT_ALTS:%=$(UT_BINDIR)/%)
 $(call target_variants,testscript): $(filter-out %packetdrill.sh,$(UT_SCRIPT_BINS))
 $(call target_variants,testpacketdrill): $(filter %packetdrill.sh,$(UT_SCRIPT_BINS))
+
 # for phony targets it does not matter whether dependencies are order-only or not
 # However order-only dependencies are out of $^ which makes recipes simpler.
-ifeq ("$(wildcard ../packetdrill-tcpdirect)", "")
+ifeq ("$(wildcard ../packetdrill-tcpdirect/Makefile.inc)", "")
   packetdrill: ;
 endif
 $(call target_explode,testpacketdrill): | shim packetdrill
-
-$(call target_variants,$(UT_ALL_LISTS)): | pretest
-
-pretest: $(SRC_CURRENT)/pretest.sh
-	sudo $<
 
 NETNS_SCRIPT := $(SRC_CURRENT)/netns.sh
 
@@ -224,22 +201,22 @@ buildattrs = ZF_ATTR="$(subst $(space),;,$(ATTR_LIST))"
 $(call target_variants,$(UT_NONSCRIPT_LISTS)):
 	@echo "Test target: $@"
 	sudo env $(UT_ENV) $(ENV) $(call buildattrs) \
+		UT_OUTPUT=$(UT_OUTPUT) TEST_TIME_OUT=$(TEST_TIME_OUT) TEST_TARGET="$@" \
 		timeout $(HARNESS_TIME_OUT) \
 		prove --exec \
-		"timeout $(TEST_TIME_OUT) $(NETNS_SCRIPT) $(VALGRIND_FLAGS)" \
+		"$(NETNS_SCRIPT)" \
 		$(PROVE_FLAGS) \
-		$^ \
-		$(PROVE_REDIRECT)
+		$^
 
 $(call target_variants,$(UT_SCRIPT_LISTS)):
 	@echo "Test target: $@"
 	sudo env $(UT_ENV) $(ENV) EXTRA_$(call buildattrs) \
+		UT_OUTPUT=$(UT_OUTPUT) TEST_TIME_OUT=$(TEST_TIME_OUT) TEST_TARGET="$@" \
 		timeout $(HARNESS_TIME_OUT) \
 		prove --exec \
-		"timeout $(TEST_TIME_OUT) $(NETNS_SCRIPT) $(VALGRIND_FLAGS)" \
+		"$(NETNS_SCRIPT)" \
 		$(PROVE_FLAGS) \
-		$^ \
-		$(PROVE_REDIRECT)
+		$^
 
 
 # The targets need to run sequentieally as each uses huge pages and spins on CPUs
@@ -251,12 +228,14 @@ $(call target_variants,$(UT_SCRIPT_LISTS)):
 # see we only use testdelegated_smallmtu
 test: testloop \
       testloop2_rx-x3 testloop2_x3 \
-      testloop_vlan testloop_txvi testmisc \
-			testb2bsb \
+      testloop_vlan testloop_txvi \
+      testb2bsb testmisc \
       testdelegated_smallmtu \
-      testb2b testalts testalts_vlan testalts_txvi testpacketdrill \
-		  testscript_x3\
-      testscript
+      testb2b testalts testalts_vlan testalts_txvi testpacketdrill
+
+test_jenkins: testjenkins \
+              testscript_x3 \
+              testscript
 
 
 .PHONY: zf_unit test

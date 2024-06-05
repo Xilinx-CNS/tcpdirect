@@ -25,6 +25,7 @@ struct zf_pool;
   do {                                                                      \
     zf_log(NULL, "FAIL at %s:%d\n", __FILE__, __LINE__);                    \
     zf_backtrace();                                                         \
+    fflush(stdout);                                                         \
     abort();                                                                \
   } while(0)
 
@@ -161,6 +162,7 @@ struct zf_pool;
       fprintf(stderr, "ERROR: at %s:%d\n", __FILE__, __LINE__);         \
       fprintf(stderr, "ERROR: rc=%d errno=%d (%s)\n",                   \
               __rc, errno, strerror(errno));                            \
+      fflush(stdout);                                                   \
       abort();                                                          \
     };                                                                  \
     if(ZF_UNLIKELY( __rc < 0 )) {                                       \
@@ -174,6 +176,7 @@ struct zf_pool;
     auto __report = [&]() ZF_COLD ZF_NOINLINE {                         \
       fprintf(stderr, "ERROR: %s: ZF_TEST(%s) failed\n", __func__, #x); \
       fprintf(stderr, "ERROR: at %s:%d\n", __FILE__, __LINE__);         \
+      fflush(stdout);                                                   \
       abort();                                                          \
     };                                                                  \
     if(ZF_UNLIKELY( ! (x) )) {                                          \

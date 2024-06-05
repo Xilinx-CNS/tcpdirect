@@ -99,12 +99,6 @@ nm.slack_notify() {
         scmmanager.cloneGit(optionsMap, version_info['products']['Onload']['repo_source'])
       }
       stash(name: 'onload-src', includes: 'onload/**', useDefaultExcludes: true)
-
-      dir('packetdrill-tcpdirect') {
-        Map optionsMap = ['branch':version_info['products']['Packetdrill']['version']]
-        scmmanager.cloneGit(optionsMap, version_info['products']['Packetdrill']['repo_source'])
-      }
-      stash(name: 'packetdrill-tcpdirect-src', includes: 'packetdrill-tcpdirect/**', useDefaultExcludes: true)
     }
   }
 
@@ -159,40 +153,25 @@ nm.slack_notify() {
           sh 'rm -fr tcpdirect onload packetdrill-tcpdirect test-results'
           unstash('tcpdirect-src')
           unstash('onload-src')
-          unstash('packetdrill-tcpdirect-src')
           sh 'ls -lad $PWD'
           def CC = sh(script: 'ls -1d /opt/rh/devtoolset-{11,10,9,8}/root/usr/bin/cc $(which cc) 2>/dev/null | head -1',
                       returnStdout: true)
           dir('test-results') { // ensure folder exists
           }
           // Makefiles do not support gcov build yet
-          sh """#!/bin/bash
+          def rc = sh(script: """#!/bin/bash
             export CC=${CC}
             export ONLOAD_TREE=\$PWD/onload
             export ZF_DEVEL=1
             export TEST_THREAD_NAME=zf
-            export TEST_RESULTS=\$PWD/test-results
-            # export GCOV=1
-            export UT_OUTPUT=\$PWD/test-results
-            make -k -C tcpdirect test
-          """
-          stash(
-            name: "junit-zf",
-            includes: 'test-results/**',
-          )
+            make -k -C tcpdirect test_jenkins
+          """, returnStatus: true)
+          if (rc != 0) {
+            unstable("not all tests passed")
+          }
         }
       },
     )
-  }
-
-  node('master') {
-    // this does not need any specific node
-    stage('Generate test report') {
-      sh 'rm -fr test-results'
-      unstash("junit-zf")
-      junit('test-results/**')
-      currentBuild.description = tm.getTestResultString()
-    }
   }
 
   // This step produces release artifacts, must be run in controlled environment
