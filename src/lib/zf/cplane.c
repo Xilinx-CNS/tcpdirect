@@ -5,7 +5,8 @@
 #include <zf_internal/zf_stack.h>
 #include <zf_internal/zf_stack_impl.h>
 
-#include <cplane/cplane.h>
+#include <cplane/api.h>
+#include <iterator>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -20,139 +21,38 @@ static const zf_logger zf_log_cplane_trace(ZF_LC_CPLANE, ZF_LL_TRACE);
 #define zf_log_cplane_trace(...) do{}while(0)
 #endif
 
-static inline void zf_init_mcast_mac(uint32_t dst_be32, unsigned char* out_mac)
-{
-  uint32_t dst = ntohl(dst_be32);
-
-  zf_assert(out_mac);
-
-  out_mac[0] = 1;
-  out_mac[1] = 0;
-  out_mac[2] = 0x5e;
-  out_mac[3] = (dst >> 16) & 0x7f;
-  out_mac[4] = (dst >> 8) & 0xff;
-  out_mac[5] = dst & 0xff;
-}
-
-static inline const cicp_llap_row_t* find_llap(struct cp_mibs* mib, int ifindex)
-{
-  cicp_rowid_t id = cp_llap_find_row(mib, ifindex);
-  if( id == CICP_ROWID_BAD )
-    return NULL;
-  else
-    return &mib->llap[id];
-}
-
-static inline const cicp_ipif_row_t* find_ipif(struct cp_mibs* mib, int ifindex)
-{
-  cicp_rowid_t id = cp_ipif_any_row_by_ifindex(mib, ifindex);
-  if( id == CICP_ROWID_BAD )
-    return NULL;
-  else
-    return &mib->ipif[id];
-}
-
-static inline uint16_t get_vlan(const cicp_encap_t* encap)
-{
-  if( encap->type & CICP_LLAP_TYPE_VLAN )
-    return encap->vlan_id;
-  else
-    return ZF_NO_VLAN;
-}
-
-static void __zf_path_pin_zock_hash(struct zf_stack* st, struct zf_tx* tx)
-{
-  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
-  /* The ports fields of the UDP and TCP header structs coincide, so we're
-   * OK to use ethipudphdr regardless */
-  struct ethipudphdr* hdr = &tx->pkt.udp_novlanhdr;
-  struct zf_path* path = &tx->path;
-  cicp_hash_state hs = {0,};
-  ci_hwport_id_t id;
-
-  /* We rely on callers to handle the case where we have no tx_hwports
-   * available.  This function will just select a nic amongst those that
-   * we have.
-   */
-  zf_assert(st->bond_state.tx_hwports);
-
-  if( tx->path.vlan != ZF_NO_VLAN ) {
-    struct ethvlanipudphdr* vlan_hdr = &tx->pkt.udp_vlanhdr;
-    hdr->eth = vlan_hdr->eth;
-    hdr->ip = vlan_hdr->ip;
-    hdr->udp = vlan_hdr->udp;
-  }
-
-  /* This is a declaration that the address is for a TCP/UDP flow, but this is
-   * without prejudice to the hashing mode, which is selected by
-   * [st->encap_type]. */
-  hs.flags |= CICP_HASH_STATE_FLAGS_IS_IP;
-  hs.flags |= CICP_HASH_STATE_FLAGS_IS_TCP_UDP;
-  memcpy(&hs.dst_mac, hdr->eth.h_dest, ETH_ALEN);
-  memcpy(&hs.src_mac, hdr->eth.h_source, ETH_ALEN);
-  hs.src_addr_be32 = hdr->ip.saddr;
-  hs.dst_addr_be32 = hdr->ip.daddr;
-  hs.src_port_be16 = hdr->udp.source;
-  hs.dst_port_be16 = hdr->udp.dest;
-
-  id = oo_cp_hwport_bond_get(st->encap_type, st->bond_state.tx_hwports, &hs);
-  path->nicno = sti->hwport_to_nicno[id];
-}
-
 ZF_COLD void zf_path_pin_zock(struct zf_stack* st, struct zf_tx* tx)
 {
   struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
 
-  memcpy(zf_tx_ethhdr(tx)->h_source, sti->sti_src_mac, ETH_ALEN);
-
-  if( st->encap_type & CICP_LLAP_TYPE_BOND ) {
-    if( st->encap_type & CICP_LLAP_TYPE_USES_HASH ) {
-      __zf_path_pin_zock_hash(st, tx);
+  if( st->encap_type & EF_CP_ENCAP_F_BOND ) {
+    ef_cp_route_verinfo verinfo = EF_CP_ROUTE_VERINFO_INIT;
+    ef_cp_fwd_meta meta = {
+      .ifindex = sti->sti_ifindex,
+      .iif_ifindex = -1,
+    };
+    iphdr* ip = zf_tx_iphdr(tx);
+    size_t prefix_space = (char*)ip - (char*)&tx->pkt;
+    int64_t rc = zf_state.cp.resolve(zf_state.cp_handle, ip, &prefix_space,
+                            &meta, &verinfo,
+                            EF_CP_RESOLVE_F_BIND_SRC | EF_CP_RESOLVE_F_NO_ARP);
+    if( rc < 0 ) {
+      /* Should only happen if something dramatic has happened, e.g. our NIC
+       * has gone down */
+      zf_log_cplane_err(st, "Socket pin failed to get a route: %s\n",
+                        strerror(-rc));
+      tx->path.nicno = 0;
+      return;
     }
-    else {
-      cicp_hwport_mask_t hwports = st->bond_state.tx_hwports;
 
-      /* Not hashing -> should have exactly one tx hwport */
-      zf_assert(CI_IS_POW2(hwports));
-      tx->path.nicno = sti->hwport_to_nicno[cp_hwport_mask_first(hwports)];
-    }
+    tx->path.nicno = (zf_stack_res_nic*)meta.intf_cookie - &sti->nic[0];
   }
   else {
-    /* In non-bond modes we only support one nic currently */
+    /* Optimisation only: In non-bond modes we only support one nic currently,
+     * so we can skip the resolve */
+    memcpy(zf_tx_ethhdr(tx)->h_source, sti->sti_src_mac, ETH_ALEN);
     tx->path.nicno = 0;
   }
-}
-
-static zf_path_status
-__zf_cplane_get_path_mcast(struct zf_stack* st, struct zf_path* path,
-                           bool wait)
-{
-  struct cp_mibs* mib;
-  cp_version_t version;
-  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
-  int stack_ifindex = sti->sti_ifindex;
-  const cicp_llap_row_t* stack_if;
-  const cicp_ipif_row_t* ipif;
-
-  CP_VERLOCK_START(version, mib, &zf_state.cplane_handle);
-
-  path->rc = ZF_PATH_NOROUTE;
-  stack_if = find_llap(mib, stack_ifindex);
-  /* Interface found - might have been not found during verlock change */
-  if( stack_if ) {
-    ipif = find_ipif(mib, stack_ifindex);
-    /* Interface has address */
-    if( ipif ) {
-      path->mtu = stack_if->mtu;
-      path->src = ipif->net_ip;
-      path->vlan = get_vlan(&stack_if->encap);
-      zf_init_mcast_mac(path->dst, path->mac);
-      path->rc = ZF_PATH_OK;
-    }
-  }
-  CP_VERLOCK_STOP(version, mib);
-
-  return path->rc;
 }
 
 /** \brief Find destination MAC address for the given IP address.
@@ -178,35 +78,31 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
                      bool wait)
 {
   struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
-  struct cp_fwd_key key;
-  struct cp_fwd_data data;
-  cicp_verinfo_t verinfo;
-  int rc;
+  ef_cp_route_verinfo verinfo = EF_CP_ROUTE_VERINFO_INIT;
+  int64_t rc;
   int64_t time_limit_us;
   int64_t time_used_us = 0;
   struct timespec start;
-  bool is_multi = CI_IP_IS_MULTICAST(path->dst);
-
-  if( is_multi )
-    return __zf_cplane_get_path_mcast(st, path, wait);
-
-  oo_cp_verinfo_init(&verinfo);
-  memset(&key, 0, sizeof(key));
-  key.dst = CI_ADDR_SH_FROM_IP4(path->dst);
-  key.ifindex = sti->sti_ifindex;
-  key.iif_ifindex = CI_IFID_BAD;
-  if( !CI_IP_IS_MULTICAST(path->src) )
-    key.src = CI_ADDR_SH_FROM_IP4(path->src);
-  else
-    key.src = CI_ADDR_SH_FROM_IP4(INADDR_ANY);
-  key.tos = 0;
-  key.flag = CP_FWD_KEY_REQ_WAIT;
+  size_t prefix_space;
+  ethvlanipudphdr pkt = {
+    .ip = {
+      .ihl = sizeof(iphdr) / 4,
+      .version = 4,
+      .protocol = IPPROTO_UDP,   /* doesn't have to be correct */
+      .saddr = !is_multicast(path->src) ? path->src : 0,
+      .daddr = path->dst,
+    },
+  };
+  ef_cp_fwd_meta meta = {
+    .ifindex = sti->sti_ifindex,
+    .iif_ifindex = -1,
+  };
 
   zf_log_cplane_trace(st, "Get route: from " CI_IP_PRINTF_FORMAT
                       " to " CI_IP_PRINTF_FORMAT " iif %d\n",
-                      CI_IP_PRINTF_ARGS(&key.src.ip4),
-                      CI_IP_PRINTF_ARGS(&key.dst.ip4),
-                      key.ifindex);
+                      CI_IP_PRINTF_ARGS(&pkt.ip.saddr),
+                      CI_IP_PRINTF_ARGS(&pkt.ip.daddr),
+                      meta.ifindex);
 
   time_limit_us = wait ? sti->arp_reply_timeout : 0;
 
@@ -214,50 +110,61 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
     clock_gettime(CLOCK_MONOTONIC, &start);
 
   do {
-    struct timespec now;
+    prefix_space = offsetof(ethvlanipudphdr, ip);
+    rc = zf_state.cp.resolve(zf_state.cp_handle, &pkt.ip, &prefix_space, &meta,
+                             &verinfo, EF_CP_RESOLVE_F_BIND_SRC);
+    if( rc == -EAGAIN ) {
+      struct timespec now;
 
-    rc = oo_cp_route_resolve(&zf_state.cplane_handle,
-                             &verinfo, &key, &data);
-    if( rc < 0 || data.base.ifindex != sti->sti_ifindex ) {
-      if( rc == 0 ) {
-        static int printed = 0;
-        if( ! printed ) {
-          zf_log_cplane_err(st, "Route goes via unknown interface ifindex=%d, "
-                            "see cplane_alien_ifindex counter in zf_stackdump\n",
-                            data.base.ifindex);
-          printed = 1;
-        }
-        st->stats.cplane_alien_ifindex++;
-      }
-      else
-        zf_log_cplane_err(st, "Failed to resolve the route: %s\n",
-                          strerror(-rc));
+      if( time_limit_us == 0 )
+        break;
+
+      clock_gettime(CLOCK_MONOTONIC, &now);
+      time_used_us = ((now.tv_sec - start.tv_sec) * 1000000) +
+                     ((now.tv_nsec - start.tv_nsec) / 1000);
+
+      if( time_used_us >= time_limit_us )
+        break;
+
+      usleep(1);
+      continue;
+    }
+    /* It is no longer safe to require meta.ifindex == sti->sti_ifindex when
+     * resolving routes. For example, sti->sti_ifindex could refer to a VLAN
+     * interface (or really any non-physical interface), but meta.ifindex
+     * will only ever return physical ifindices because we will only ever
+     * register physical interfaces with the cplane API. */
+    if( rc >= 0 && meta.ifindex > 0 )
+      break;
+    if( rc == -ETIMEDOUT ) {
+      zf_log_cplane_err(st, "ARP failed for " CI_IP_PRINTF_FORMAT "\n",
+                        CI_IP_PRINTF_ARGS(&path->dst));
       path->rc = ZF_PATH_NOROUTE;
       return path->rc;
     }
+    if( rc == -EADDRNOTAVAIL ) {
+      static int printed = 0;
+      if( ! printed ) {
+        zf_log_cplane_err(st, "Route goes via unknown interface ifindex=%d, "
+                          "see cplane_alien_ifindex counter in zf_stackdump\n",
+                          meta.ifindex);
+        printed = 1;
+      }
+      st->stats.cplane_alien_ifindex++;
+    }
+    else
+      zf_log_cplane_err(st, "Failed to resolve the route: %s\n",
+                        strerror(-rc));
+    path->rc = ZF_PATH_NOROUTE;
+    return path->rc;
 
     /* In theory, we shoud break out if we see FLAG_ARP_FAILED popping up
      * in a non-first loop.  But if we see ARP_FAILED from the start, we
      * should give a chance to re-resolve.  For now we always loop. */
-    if( (data.flags & CICP_FWD_DATA_FLAG_ARP_VALID) || (time_limit_us == 0) )
-      break;
-
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    time_used_us = ((now.tv_sec - start.tv_sec) * 1000000) +
-                   ((now.tv_nsec - start.tv_nsec) / 1000);
-
-    if( time_used_us >= time_limit_us )
-      break;
-
-    usleep(1);
   } while( 1 );
 
-  if( ! (data.flags & CICP_FWD_DATA_FLAG_ARP_VALID) ) {
-    if( data.flags & CICP_FWD_DATA_FLAG_ARP_FAILED ) {
-      zf_log_cplane_err(st, "ARP failed for " CI_IP_PRINTF_FORMAT "\n",
-                        CI_IP_PRINTF_ARGS(&path->dst));
-    }
-    else if( time_limit_us ) {
+  if( rc == -EAGAIN ) {
+    if( time_limit_us ) {
       zf_log_cplane_err(st, "ARP timeout for " CI_IP_PRINTF_FORMAT "\n",
                         CI_IP_PRINTF_ARGS(&path->dst));
     }
@@ -265,33 +172,27 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
     return path->rc;
   }
 
+  ethhdr* eth = (ethhdr*)((char*)&pkt.ip - prefix_space);
   zf_log_cplane_trace(st, "Got route: from " CI_IP_PRINTF_FORMAT
                       " via " CI_MAC_PRINTF_FORMAT
-                      " iif %d encap %x\n",
-                      CI_IP_PRINTF_ARGS(&data.base.src),
-                      CI_MAC_PRINTF_ARGS(&data.dst_mac),
-                      data.base.ifindex, data.encap.type);
+                      " iif %d ethertype %x\n",
+                      CI_IP_PRINTF_ARGS(&pkt.ip.saddr),
+                      CI_MAC_PRINTF_ARGS(&eth->h_dest),
+                      meta.ifindex, ntohs(eth->h_proto));
 
   if( time_limit_us ) {
     zf_log_cplane_info(st, "ARP for " CI_IP_PRINTF_FORMAT
                        " via ifindex %d took %dus\n",
                        CI_IP_PRINTF_ARGS(&path->dst),
-                       data.base.ifindex, time_used_us);
+                       meta.ifindex, time_used_us);
   }
 
-  path->vlan = get_vlan(&data.encap);
-  path->mtu = data.base.mtu;
-  path->src = data.base.src.ip4;
-  memcpy(path->mac, &data.dst_mac, ETH_ALEN);
+  path->vlan = eth->h_proto == htons(ETH_P_8021Q) ?
+               ntohs(pkt.vlan_tag) : ZF_NO_VLAN;
+  path->mtu = meta.mtu;
+  path->src = pkt.ip.saddr;
+  memcpy(path->mac, (char*)&pkt.ip - prefix_space, ETH_ALEN);
   path->rc = ZF_PATH_OK;
-
-  /* When we return ZF_PATH_OK here we are saying that it's safe to pin the
-   * zocket to a nic, which relies on there being something to pin to.
-   *
-   * If we're returning ok them we think we've got a valid route over a ZF
-   * interface, which implies we've got at least one tx_hwport available.
-   */
-  zf_assert(data.hwports);
 
   return path->rc;
 }
@@ -299,56 +200,30 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
 
 int zf_cplane_get_iface_info(int ifindex, zf_if_info* info_out)
 {
-  struct cp_mibs* mib;
-  cicp_rowid_t id;
-  cp_version_t version;
-  int rc = 0;
+  ef_cp_intf intf;
+  int rc = zf_state.cp.get_intf(zf_state.cp_handle, ifindex, &intf, 0);
+  if( rc < 0 )
+    return rc;
 
-  CP_VERLOCK_START(version, mib, &zf_state.cplane_handle);
+  memcpy(&info_out->mac_addr, intf.mac, sizeof(info_out->mac_addr));
+  info_out->ifindex = intf.ifindex;
+  strncpy(info_out->name, intf.name, sizeof(info_out->name));
+  info_out->encap = intf.encap;
+  info_out->vlan_id = intf.encap_data[0];
 
-  id = cp_llap_find_row(mib, ifindex);
-
-  if( id != CICP_ROWID_BAD ) {
-    const cicp_llap_row_t* row = &mib->llap[id];
-    memcpy(&info_out->mac_addr, &row->mac, sizeof(info_out->mac_addr));
-    if( (row->encap.type & (CICP_LLAP_TYPE_VLAN | CICP_LLAP_TYPE_MACVLAN)) )
-      info_out->ifindex = row->encap.link_ifindex;
-    else
-      info_out->ifindex = ifindex;
-    /* The [rx_hwports] member of the LLAP row specifies all hwports included
-     * in the bond, and these are precisely the hwports on which we want to
-     * create VIs for the ZF stack. */
-    info_out->rx_hwports = row->rx_hwports;
-    info_out->tx_hwports = row->tx_hwports;
-    strncpy(info_out->name, row->name, sizeof(info_out->name));
-    info_out->encap = row->encap;
-  }
-  else {
-    rc = -ENOENT;
-  }
-
-  CP_VERLOCK_STOP(version, mib);
-
-  return rc;
+  rc = zf_state.cp.get_lower_intfs(zf_state.cp_handle, ifindex,
+                    info_out->hw_ifindices, std::size(info_out->hw_ifindices),
+                    EF_CP_GET_INTFS_F_MOST_DERIVED | EF_CP_GET_INTFS_F_NATIVE);
+  if( rc < 0 )
+    return rc;
+  info_out->hw_ifindices_n = std::min<int>(rc, std::size(info_out->hw_ifindices));
+  return 0;
 }
 
 
 int zf_cplane_get_ifindex(const char* interface)
 {
-  struct cp_mibs* mib;
-  cicp_rowid_t id;
-  cp_version_t version;
-  int rc;
-
-  CP_VERLOCK_START(version, mib, &zf_state.cplane_handle);
-
-  id = cp_llap_by_ifname(mib, interface);
-  if( id != CICP_ROWID_BAD )
-    rc = mib->llap[id].ifindex;
-  else
-    rc = -ENODEV;
-
-  CP_VERLOCK_STOP(version, mib);
-
-  return rc;
+  ef_cp_intf intf;
+  int rc = zf_state.cp.get_intf_by_name(zf_state.cp_handle, interface, &intf, 0);
+  return rc < 0 ? rc : intf.ifindex;
 }

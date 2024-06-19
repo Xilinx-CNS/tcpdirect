@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 /* SPDX-FileCopyrightText: (c) Advanced Micro Devices, Inc. */
 #include <cplane/cplane.h>
+#include <iterator>
 
 #include <zf/zf.h>
 #include <zf_internal/private/zf_stack_def.h>
@@ -31,53 +32,73 @@ static void zf_bond_repin(struct zf_stack* stack)
   }
 }
 
-ZF_COLD int zf_bond_update(struct zf_stack* stack)
+static int check_and_update_bond_state(struct zf_stack* st)
 {
-  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, stack);
-  struct zf_bond_state* bs = &stack->bond_state;
-  cp_version_t ver;
-  struct cp_mibs* mib;
-  cicp_rowid_t id;
-  cicp_llap_row_t llap;
+  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
+  struct zf_bond_state* bs = &st->bond_state;
+  ef_cp_intf intf;
+  int rc;
+  int ifindices[CI_ARRAY_SIZE(bs->ifindices)];
 
-  CP_VERLOCK_START(ver, mib, &zf_state.cplane_handle)
-    bs->llap_version = *mib->llap_version;
+  st->bond_state.intf_version = zf_state.cp.intf_version_get(zf_state.cp_handle);
+  rc = zf_state.cp.get_intf_by_name(zf_state.cp_handle, sti->sti_if_name,
+                                    &intf, 0);
+  if(ZF_UNLIKELY( rc < 0 ))
+    return rc;
 
-    id = cp_llap_by_ifname(mib, sti->sti_if_name);
-    if(ZF_LIKELY( id != CICP_ROWID_BAD ))
-      llap = mib->llap[id];
+  rc = zf_state.cp.get_lower_intfs(zf_state.cp_handle, intf.ifindex, ifindices,
+                         std::size(ifindices),
+                         EF_CP_GET_INTFS_F_NATIVE | EF_CP_GET_INTFS_F_UP_ONLY |
+                                    EF_CP_GET_INTFS_F_MOST_DERIVED);
+  if(ZF_UNLIKELY( rc < 0 ))
+    return rc;
 
-  CP_VERLOCK_STOP(ver, mib);
-
-  if(ZF_UNLIKELY( id == CICP_ROWID_BAD ))
-    return -1;
-
-  /* We don't really care about changes to rx_hwports, we just listen on all
-   * VIs instatiated during stack creation. Nonetheless, it should not grow
-   * outside of its initial value. */
-  zf_assert_flags(bs->rx_hwports, llap.rx_hwports);
-
-  /* Similarly, tx_hwports should not grow outside of intitial rx_hwports */
-  zf_assert_flags(bs->rx_hwports, llap.tx_hwports);
-
-  /* In the unlikely case that we have no TX hwports, we will continue to
-   * send as we did previously until we get another update that provides a
-   * non-empty set. */
-  if(ZF_UNLIKELY( ! llap.tx_hwports ))
-    return 0;
-
-  /* Try and optimise for the false-positive case */
-  if(ZF_UNLIKELY( bs->tx_hwports != llap.tx_hwports ||
-                  memcmp(sti->sti_src_mac, llap.mac, ETH_ALEN) )) {
-    bs->tx_hwports = llap.tx_hwports;
-
+  rc = std::min<int>(rc, std::size(ifindices));
+  if(ZF_UNLIKELY( bs->ifindices_n != rc ||
+                  memcmp(bs->ifindices, ifindices, rc * sizeof(ifindices)) ||
+                  memcmp(sti->sti_src_mac, intf.mac, ETH_ALEN) )) {
+    memcpy(bs->ifindices, ifindices, sizeof(ifindices));
+    bs->ifindices_n = rc;
     /* Update the stack's copy of the local MAC address.  This will be
      * proagated to zockets when repinning. */
-    memcpy(sti->sti_src_mac, llap.mac, ETH_ALEN);
-
-    zf_assert_equal(stack->encap_type, llap.encap.type);
-    zf_bond_repin(stack);
+    memcpy(sti->sti_src_mac, intf.mac, ETH_ALEN);
+    return true;
   }
+  return false;
+}
+
+ZF_COLD int zf_stack_init_bond_state(struct zf_stack* st,
+                                     struct zf_if_info* ifinfo)
+{
+  int rc = check_and_update_bond_state(st);
+  return rc < 0 ? rc : 0;
+}
+
+ZF_COLD int zf_bond_update(struct zf_stack* stack)
+{
+  struct zf_bond_state* bs = &stack->bond_state;
+  int rc = check_and_update_bond_state(stack);
+
+  if(ZF_UNLIKELY( rc < 0 ))
+    return -1;
+
+  (void)bs; /* quell compiler in NDEBUG */
+#ifndef NDEBUG
+  /* We only initialize our VIs at startup, so it'd be unfortunate if a new
+   * interface was added to a bond which we weren't able to use.
+   * ef_cp_resolve() will cope cleanly with this by not using the unregistered
+   * interfaces, but it's still useful to assert if this has happened. */
+  for( int i = 0; i < bs->ifindices_n; ++i ) {
+    ef_cp_intf intf;
+    int r = zf_state.cp.get_intf(zf_state.cp_handle, bs->ifindices[i], &intf, 0);
+    zf_assert_equal(r, 0);
+    zf_assert_nequal(intf.registered_cookie, NULL);
+  }
+#endif
+
+  /* Try and optimise for the false-positive case */
+  if(ZF_UNLIKELY( rc > 0 ))
+    zf_bond_repin(stack);
 
   return 0;
 }

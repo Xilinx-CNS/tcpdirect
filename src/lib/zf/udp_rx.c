@@ -74,7 +74,7 @@ extern int zfur_addr_bind(struct zfur* us, struct sockaddr* laddr_sa,
   if ( raddr != NULL ) {
     bool raddr_is_all = raddr->sin_addr.s_addr == INADDR_ANY;
     bool raddr_port_is_0 = raddr->sin_port == 0;
-    bool laddr_is_multicast = CI_IP_IS_MULTICAST(laddr->sin_addr.s_addr);
+    bool laddr_is_multicast = is_multicast(laddr);
     if ( raddr_is_all && raddr_port_is_0 ) {
       /*
        * Convert raddr INADDR_ANY:0 to NULL for lower layers.

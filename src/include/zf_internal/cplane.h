@@ -8,11 +8,9 @@
 #include <arpa/inet.h>
 #include <net/if.h>  /* For IF_NAMESIZE */
 
-#include <cplane/cplane.h>
-#include <cplane/create.h>
-
 #include <zf_internal/zf_log.h>
 #include <zf_internal/utils.h>
+#include <zf_internal/stack_params.h>
 
 enum zf_path_status {
   ZF_PATH_OK=0,
@@ -40,8 +38,8 @@ __zf_cplane_get_path(struct zf_stack* st, struct zf_path* path,
 
 
 struct zf_if_info {
-  cicp_hwport_mask_t rx_hwports;
-  cicp_hwport_mask_t tx_hwports;
+  int hw_ifindices[ZF_MAX_NICS];
+  int hw_ifindices_n;
   /* If we're using a higher-order interface, this value is the ifindex of the
    * parent interface _in its own namespace_ (which might or might not be the
    * same as the namespace of the specified interface).  Otherwise, it's the
@@ -49,7 +47,8 @@ struct zf_if_info {
   int ifindex;
   char name[IF_NAMESIZE];
   ci_uint8 mac_addr[6];
-  cicp_encap_t encap;
+  uint32_t encap;
+  uint16_t vlan_id;
 };
 
 extern int zf_cplane_get_iface_info(int ifindex, zf_if_info* info_out);

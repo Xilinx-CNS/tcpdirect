@@ -66,13 +66,6 @@ zfrr_init(struct zf_rx_res* rx_res)
 
 
 static int
-is_multicast(const struct sockaddr_in* laddr)
-{
-  return (ntohl(laddr->sin_addr.s_addr) & 0xf0000000) == 0xe0000000;
-}
-
-
-static int
 get_backing_socket(struct zf_stack* st, int proto, int ifindex,
                    const struct sockaddr_in* laddr,
                    const struct sockaddr_in* raddr)
@@ -381,7 +374,7 @@ zfrr_add(struct zf_stack* st, struct zf_rx_res* rx_res, uint16_t zocket_id,
   uint32_t raddr_be = 0;
   uint16_t rport_be = 0;
 
-  bool laddr_is_multicast = CI_IP_IS_MULTICAST(laddr->sin_addr.s_addr);
+  bool laddr_is_multicast = is_multicast(laddr);
   bool raddr_port_is_0 = raddr && raddr->sin_port == 0;
   bool needs_ssm_local_filter =  ( laddr_is_multicast && raddr_port_is_0 );
 
@@ -520,7 +513,7 @@ zfrr_remove(struct zf_stack* stack, struct zf_rx_table_res* rx_table_res,
   uint32_t raddr_be = 0;
   uint32_t rport_be = 0;
   if ( raddr ) {
-    bool ssm_filter_installed =  CI_IP_IS_MULTICAST(laddr->sin_addr.s_addr) && raddr->sin_port == 0;
+    bool ssm_filter_installed = is_multicast(laddr) && raddr->sin_port == 0;
     raddr_be = ssm_filter_installed ? 0 : raddr->sin_addr.s_addr;
     rport_be = ssm_filter_installed ? 0 : raddr->sin_port;
   }

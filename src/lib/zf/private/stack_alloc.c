@@ -26,6 +26,7 @@
 #include <zf_internal/muxer.h>
 #include <zf_internal/zf_tcp.h>
 #include <zf_internal/zf_alts.h>
+#include <zf_internal/bond.h>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -484,11 +485,6 @@ static void zf_stack_init_state(struct zf_stack_impl* sti,
                      sti->muxer.resources);
 
   st->magic = zf_stack::MAGIC_VALUE;
-
-  for( uint32_t i = 0;
-       i < sizeof(sti->hwport_to_nicno) / sizeof(sti->hwport_to_nicno[0]);
-       ++i )
-    sti->hwport_to_nicno[i] = -1;
 }
 
 
@@ -550,7 +546,6 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   zf_stack* st = &sti->st;
   struct zf_stack_nic* st_nic = &st->nic[nicno];
   struct zf_stack_res_nic* sti_nic = &sti->nic[nicno];
-  int rx_hwport;
   int rc;
 
   /* Open driver. */
@@ -678,11 +673,13 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
       goto fail4;
   }
 
-  ci_sllist_init(&st_nic->pollout_req_list);
+  rc = zf_state.cp.register_intf(zf_state.cp_handle, ifindex, &sti->nic[nicno], 0);
+  if( rc < 0 ) {
+    zf_log_stack_err(st, "Failed to register cplane intf %d (rc = %d)\n", ifindex, rc);
+    goto fail4;
+  }
 
-  ci_assert(CI_IS_POW2(if_cplane_info->rx_hwports));
-  rx_hwport = cp_hwport_mask_first(if_cplane_info->rx_hwports);
-  sti->hwport_to_nicno[rx_hwport] = nicno;
+  ci_sllist_init(&st_nic->pollout_req_list);
 
   st->nics_n++;
 
@@ -724,24 +721,6 @@ static int zf_stack_init_nic_pool(struct zf_stack_impl* sti,
   return rc;
 }
 
-void zf_stack_init_bond_state(struct zf_stack* st, struct zf_if_info* ifinfo)
-{
-  /* rx_hwports cannot change because we do not support addition of slaves */
-  st->bond_state.rx_hwports = ifinfo->rx_hwports;
-  zf_assert(ifinfo->rx_hwports);
-
-  /* If the control plane has reported any TX hwports, remember them.  If not,
-   * choose one arbitrarily: we don't support a no-TX-hwport state internally,
-   * but we do promise not to crash if there are no TX hwports reported.  In
-   * any case, the TX hwports will be updated when the LLAP version becomes
-   * stale. */
-  if( ifinfo->tx_hwports != 0 )
-    st->bond_state.tx_hwports = ifinfo->tx_hwports;
-  else
-    st->bond_state.tx_hwports =
-      1ull << cp_hwport_mask_first(ifinfo->rx_hwports);
-}
-
 
 #ifndef ZF_DEVEL
 static
@@ -779,6 +758,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
 
   memset(sti, 0, sizeof(*sti));
   zf_stack_init_state(sti, attr);
+  strncpy(sti->sti_if_name, attr->interface, IF_NAMESIZE - 1);
 
   st = &sti->st;
 
@@ -839,29 +819,34 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
     goto fail2;
   }
 
-  st->encap_type = if_cplane_info.encap.type;
+  st->encap_type = if_cplane_info.encap;
   sti->sti_ifindex = ifindex;
-  if( st->encap_type & CICP_LLAP_TYPE_VLAN )
-    sti->sti_vlan_id = if_cplane_info.encap.vlan_id;
+  if( st->encap_type & EF_CP_ENCAP_F_VLAN )
+    sti->sti_vlan_id = if_cplane_info.vlan_id;
   else
     sti->sti_vlan_id = ZF_NO_VLAN;
   memcpy(sti->sti_src_mac, if_cplane_info.mac_addr, ETH_ALEN);
 
   /* Check whether the interface can be accelerated.  This includes non-SFC
    * interfaces, bonds with non-SFC slaves, and bonds with no slaves. */
-  if( if_cplane_info.rx_hwports == 0 ) {
+  if( if_cplane_info.hw_ifindices_n == 0 ) {
     zf_log_stack_err(st, "Interface %s is not acceleratable.\n",
                      attr->interface);
     rc = -EIO;
     goto fail2;
   }
 
-  if( st->encap_type & CICP_LLAP_TYPE_BOND )
-    zf_stack_init_bond_state(st, &if_cplane_info);
+  if( st->encap_type & EF_CP_ENCAP_F_BOND ) {
+    rc = zf_stack_init_bond_state(st, &if_cplane_info);
+    if( rc < 0 ) {
+      zf_log_stack_err(st, "Unable to query bond details: %s.\n", strerror(-rc));
+      goto fail2;
+    }
+  }
 
   /* If we have more than one hwport, some features are disallowed as a matter
    * of policy. */
-  if( ! CI_IS_POW2(if_cplane_info.rx_hwports) ) {
+  if( if_cplane_info.hw_ifindices_n > 1 ) {
     /* We disallow alternatives because they are a limited resource and because
      * they would interact very awkwardly with bond failover. */
     if( attr->alt_count > 0 ) {
@@ -873,24 +858,15 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   }
 
   /* Resolve the hwports for the interface and create a VI on each. */
-  for( int nicno = 0;
-       if_cplane_info.rx_hwports != 0;
-       if_cplane_info.rx_hwports &= if_cplane_info.rx_hwports - 1, ++nicno ) {
-    uint16_t hwport = cp_hwport_mask_first(if_cplane_info.rx_hwports);
+  for( int nicno = 0; nicno < if_cplane_info.hw_ifindices_n; ++nicno ) {
     zf_if_info hwport_cplane_info;
-    int hwport_ifindex = oo_cp_get_hwport_ifindex(&zf_state.cplane_handle,
-                                                  hwport);
-    if( hwport_ifindex == CI_IFID_BAD ) {
-      zf_log_stack_err(st, "Failed to find ifindex for hwport %u\n", hwport);
-      rc = -EINVAL;
-      goto fail3;
-    }
+    int hwport_ifindex = if_cplane_info.hw_ifindices[nicno];
 
     rc = zf_cplane_get_iface_info(hwport_ifindex, &hwport_cplane_info);
     if( rc < 0 ) {
       zf_log_stack_err(st,
-                       "Failed to query interface for hwport %u (rc = %d)\n",
-                       hwport, rc);
+                       "Failed to query interface for ifindex %d (rc = %d)\n",
+                       hwport_ifindex, rc);
       goto fail3;
     }
 
@@ -946,7 +922,6 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
     strncpy(st->st_name, attr->name, sizeof(st->st_name));
   else
     sprintf(st->st_name, "%s/%03x", attr->interface, st->nic[0].vi.vi_i);
-  strncpy(sti->sti_if_name, attr->interface, IF_NAMESIZE - 1);
 
   *stack_out = st;
   return 0;

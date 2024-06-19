@@ -20,13 +20,10 @@ $(SOCKET_SHIM_OBJS): ZF_CFLAGS_COMPONENT := \
   $(ZF_CFLAGS_COMMON) \
   $(ZF_CXXFLAGS_COMMON) \
   -fvisibility=hidden \
-  $(CP_INTF_VER_CFLAGS) \
   -I$(ONLOAD_TREE)/src/include \
   -I$(ONLOAD_UL_BUILD_DIR)/include \
   -fPIC \
    '-DTRANSPORT_CONFIG_OPT_HDR=<ci/internal/transport_config_opt_extra.h>'
-
-$(SOCKET_SHIM_OBJS): $(CP_INTF_VER_HDR)
 
 # Link the shim against the dynamic ZF library to make Runbench's life easier.
 # If the shim is ever distributed, Runbench can use that instead, and we'd be
