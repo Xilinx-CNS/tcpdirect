@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: (c) 2024 Advanced Micro Devices, Inc.
+
+name: Test
+description: Run the TCPDirect unit tests
+inputs:
+  tcpdirect_tree:
+    required: true
+    type: string
+    description: Path to the TCPDirect source tree to build
+  onload_tree:
+    required: true
+    type: string
+    description: Path to the Onload source tree to build TCPDirect with
+  debug:
+    required: false
+    default: true
+    type: boolean
+    description: Whether to build debug binaries
+runs:
+  using: "composite"
+  steps:
+    - name: Run tests
+      shell: sh
+      working-directory: ${{ inputs.tcpdirect_tree }}
+      env:
+        ONLOAD_TREE: ${{ inputs.onload_tree }}
+        NDEBUG: ${{ fromJSON(inputs.debug) && 0 || 1 }}
+        ZF_DEVEL: 1
+      run: UT_OUTPUT="$GITHUB_STEP_SUMMARY" make -j $(nproc) test
