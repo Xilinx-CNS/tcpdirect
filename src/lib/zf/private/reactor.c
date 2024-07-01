@@ -154,13 +154,12 @@ zf_reactor_handle_rx_ref_discard(struct zf_stack* st, int nic, ef_vi *vi,
 ZF_HOT static void
 efct_pkt_prefix(ef_vi* vi, char* pkt, uint32_t pkt_id)
 {
-  struct timespec ts;
-  unsigned flags;
-  int rc = efct_vi_rxpkt_get_timestamp(vi, pkt_id, &ts, &flags);
+  ef_precisetime ts;
+  int rc = ef_vi_receive_get_precise_timestamp(vi, pkt, &ts);
   *(uint32_t*)(pkt + RX_PREFIX_TSYNC_MAJOR_OFST) = ts.tv_sec;
   *(uint32_t*)(pkt + RX_PREFIX_TSYNC_MINOR_OFST) = ts.tv_nsec;
   *(uint16_t*)(pkt + RX_PREFIX_NICNO_OFST) = RX_PREFIX_NICNO_EFCT;
-  *(uint16_t*)(pkt + RX_PREFIX_TS_FLAGS_OFST) = flags;
+  *(uint16_t*)(pkt + RX_PREFIX_TS_FLAGS_OFST) = ts.tv_flags;
   *(uint16_t*)(pkt + RX_PREFIX_TS_RESULT_OFST) = -rc;
 }
 
