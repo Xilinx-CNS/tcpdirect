@@ -8,7 +8,7 @@
 #include <zf_internal/tx_types.h>
 #include <zf_internal/zf_pool.h>
 extern "C" {
-#include <etherfabric/internal/internal.h>
+#include <etherfabric/ef_vi.h>
 }
 
 struct zf_tx_warm_state {
