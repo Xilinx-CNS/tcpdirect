@@ -14,6 +14,7 @@ my_dir=$(cd $(dirname "$0") && /bin/pwd)
 top_dir=$(dirname "${my_dir}")
 
 copy_to_tmpdir="
+versions.yaml
 Makefile
 Makefile.onload
 Makefile-top.inc
