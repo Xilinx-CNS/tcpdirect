@@ -4,7 +4,7 @@
 # SPDX-FileCopyrightText: (c) 2020-2023 Advanced Micro Devices, Inc.
 #
 ##############################################################################
-# This script is invoked by zf_mkdist on the dedicated zf build server.
+# This script is invoked by zf_mkdist to build the requested artifacts.
 ##############################################################################
 
 my_dir=$(cd $(dirname "$0") && /bin/pwd)
@@ -95,7 +95,13 @@ if [ -z "$onload_tree" ]; then
 fi
 
 if [ -z "$CC" ]; then
-     export CC=$(locate_compiler)
+    wanted_cc=$(locate_compiler)
+    if [ -f "$wanted_cc" ]; then
+        export CC="$wanted_cc"
+        echo "Set CC=$wanted_cc"
+    else
+        echo "Failed to find compiler, not setting CC=$wanted_cc"
+    fi
 fi
 
 
