@@ -1,7 +1,7 @@
 #! /bin/bash -e
 #
 # SPDX-License-Identifier: MIT
-# SPDX-FileCopyrightText: (c) 2020-2023 Advanced Micro Devices, Inc.
+# SPDX-FileCopyrightText: (c) 2020-2024 Advanced Micro Devices, Inc.
 #
 ##############################################################################
 # Builds a TCPDirect package for use by customers, containing prebuilt
@@ -13,10 +13,7 @@
 my_dir=$(cd $(dirname "$0") && /bin/pwd)
 top_dir=$(dirname "${my_dir}")
 
-declare -a build_servers
-build_servers=(xcb-onload-build-x86_64 onload-build-x86_64)
-
-copy_to_remote="
+copy_to_tmpdir="
 Makefile
 Makefile.onload
 Makefile-top.inc
@@ -37,52 +34,30 @@ usage() {
 }
 
 
-resolved_build_server=''
-resolve_build_server() {
-    if [ -z "${resolved_build_server}" ]
-    then
-        for host in "${build_servers[@]}"
-        do
-            resolved_build_server=$host
-            host $host > /dev/null 2>&1 && break
-        done
-    fi
-    echo ${resolved_build_server}
-}
-
-
-on_build_server() {
-    local build_server="$(resolve_build_server)"
-    # No X forwarding; no TTY; no prompts.  Disable host-key checking because the
-    # x86_64 build are done on one machines from a set that share a failover IP.
-    ssh -xT -o StrictHostKeyChecking=no -o BatchMode=yes "${build_server}" "$@"
-}
-
-
 cleanup() {
-    echo "${build_server}: Deleting ${remote_tmpdir}"
-    on_build_server rm -rf "${remote_tmpdir}"
+    echo "Deleting ${tmpdir}"
+    rm -rf "${tmpdir}"
 }
 
 
-copy_files_to_build_server() {
-    on_build_server mkdir -p "${remote_onload_dir}"
-    on_build_server mkdir -p "${remote_zf_dir}"
-    tar cz -C "${top_dir}" ${copy_to_remote} | on_build_server "tar xz -C ${remote_zf_dir}"
-    cat "${onload_tarball}" | on_build_server "tar xz -C ${remote_onload_dir}"
+copy_files_to_tmpdir() {
+    mkdir -p "${onload_tmpdir}"
+    mkdir -p "${zf_tmpdir}"
+    tar cz -C "${top_dir}" ${copy_to_tmpdir} | tar xz -C ${zf_tmpdir}
+    cat "${onload_tarball}" | tar xz -C ${onload_tmpdir}
 }
 
 
-build_zf_on_server() {
-    on_build_server "${remote_zf_dir}"/scripts/zf_mkdist_build "${build_opts}"
+build_zf() {
+    "${zf_tmpdir}"/scripts/zf_mkdist_build "${build_opts}"
 }
 
 
-grab_artifacts_from_server() {
-    remote_dir="${remote_zf_dir}/build/artifacts"
+grab_artifacts_from_tmpdir() {
+    tmpdir="${zf_tmpdir}/build/artifacts"
     local_dir="${top_dir}/build/artifacts"
     mkdir -p "${local_dir}"
-    on_build_server tar cz -C "${remote_dir}" . | tar zx -C "${local_dir}"
+    tar cz -C "${tmpdir}" . | tar zx -C "${local_dir}"
 }
 
 make_release_package() {
@@ -116,12 +91,12 @@ fi
 
 [ $tarball_count -eq 1 ] || usage
 
-remote_tmpdir=$(on_build_server mktemp -d)
-remote_onload_dir="${remote_tmpdir}/onload"
-remote_zf_dir="${remote_tmpdir}/zf"
+tmpdir=$(mktemp -d)
+onload_tmpdir="${tmpdir}/onload"
+zf_tmpdir="${tmpdir}/zf"
 trap cleanup EXIT
 
-copy_files_to_build_server
-build_zf_on_server
-grab_artifacts_from_server
+copy_files_to_tmpdir
+build_zf
+grab_artifacts_from_tmpdir
 make_release_package "${version}"
