@@ -10,6 +10,9 @@
 ##############################################################################
 
 
+##
+# Setup build directory
+
 my_dir=$(cd $(dirname "$0") && /bin/pwd)
 top_dir=$(dirname "${my_dir}")
 
@@ -49,11 +52,6 @@ copy_files_to_tmpdir() {
 }
 
 
-build_zf() {
-    "${zf_tmpdir}"/scripts/zf_mkdist_build "${build_opts}"
-}
-
-
 grab_artifacts_from_tmpdir() {
     tmpdir="${zf_tmpdir}/build/artifacts"
     local_dir="${top_dir}/build/artifacts"
@@ -66,11 +64,104 @@ make_release_package() {
     "${top_dir}"/scripts/zf_make_tarball --version "${package_version}"
 }
 
+
+##
+# Build
+
+
+locate_compiler() {
+    compiler=$(readlink -f /opt/zf/cc || echo)
+    if [ ! -e "${ZF_CC}" ]; then
+        compiler="/opt/rh/devtoolset-7/root/usr/bin/cc"
+    fi
+    echo "${compiler}"
+}
+
+
+build_and_copy_artifacts() {
+    build_type="$1"
+    artifact_dir="$2"
+    if [ "${build_type}" == "debug" ]; then
+        echo "Building debug binaries"
+        make_args=
+    elif [ "${build_type}" == "shim" ]; then
+        echo "Building socket shim"
+        make_args="ZF_DEVEL=1 shim"
+    else
+        echo "Building ndebug binaries"
+        make_args=NDEBUG=1
+    fi
+
+    build_dir="${zf_tmpdir}"/build
+    rm -rf "${build_dir}"/onload
+    rm -rf "${build_dir}"/gnu*
+    cd "${zf_tmpdir}"
+    make ${make_args}
+    build_tree=$(ls -d "${build_dir}"/gnu*)
+    copy_artifacts "${build_tree}" "${artifact_dir}" "${build_type}"
+}
+
+
+copy_artifacts() {
+    build_dir="$1"
+    dest_dir="$2"
+    build_type="$3"
+
+    if [ "${build_type}" == "shim" ]; then
+        mkdir -p "${dest_dir}"/shim
+        cp -a "$build_dir"/lib/libzf_sockets.so "${dest_dir}"/shim
+        return
+    fi
+
+    lib_dir_stripped="${dest_dir}/stripped/${build_type}/lib"
+    lib_dir_unstripped="${dest_dir}/unstripped/${build_type}/lib"
+    bin_dir_stripped="${dest_dir}/stripped/${build_type}/bin"
+    bin_dir_unstripped="${dest_dir}/unstripped/${build_type}/bin"
+    mkdir -p "${lib_dir_stripped}"
+    mkdir -p "${lib_dir_unstripped}"
+    mkdir -p "${bin_dir_stripped}"
+    mkdir -p "${bin_dir_unstripped}"
+
+    # Copy stripped binaries
+    cp -a "${build_dir}"/bin/stripped/zf_stackdump "${bin_dir_stripped}"
+    cp -a "${build_dir}"/lib/stripped/libonload_zf_static.a "${lib_dir_stripped}"
+    cp -a "${build_dir}"/lib/stripped/libonload_zf.so* "${lib_dir_stripped}"
+
+    #Copy unstripped binaries
+    cp -a "${build_dir}"/bin/zf_stackdump "${bin_dir_unstripped}"
+    cp -a "${build_dir}"/lib/libonload_zf_static.a "${lib_dir_unstripped}"
+    cp -a "${build_dir}"/lib/libonload_zf.so* "${lib_dir_unstripped}"
+}
+
+
+build_zf() {
+  if [ -z "$CC" ]; then
+      wanted_cc=$(locate_compiler)
+      if [ -f "$wanted_cc" ]; then
+          export CC="$wanted_cc"
+          echo "Set CC=$wanted_cc"
+      else
+          echo "Failed to find compiler, not setting CC=$wanted_cc"
+      fi
+  fi
+
+  export ONLOAD_TREE="$(ls -1d $onload_tmpdir/*)"
+  artifact_dir="${zf_tmpdir}/build/artifacts/"
+  rm -rf ${artifact_dir}
+  build_and_copy_artifacts "debug" ${artifact_dir}
+  build_and_copy_artifacts "release" ${artifact_dir}
+  if [ "$shim" = "true" ]; then
+      build_and_copy_artifacts "shim" "${artifact_dir}"
+  fi
+}
+
+
 ######################################################################
 # main()
 
 version=
 stripped=true
+shim=false
 build_opts=""
 onload_tarball=
 tarball_count=0
@@ -79,7 +170,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --version)  shift; version="$1";;
         --unstripped) stripped=false;;
-        --shim) build_opts+="--shim";;
+        --shim) shim=true;;
         -*)  usage;;
         *)  onload_tarball="$1"; tarball_count=$((tarball_count+1));;
     esac
