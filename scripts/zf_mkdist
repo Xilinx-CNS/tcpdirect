@@ -63,7 +63,7 @@ grab_artifacts_from_tmpdir() {
 
 make_release_package() {
     package_version="$1"
-    "${top_dir}"/scripts/zf_make_tarball --version "${package_version}" --name "zf"
+    "${top_dir}"/scripts/zf_make_tarball --version "${package_version}"
 }
 
 ######################################################################
