@@ -68,6 +68,7 @@ nm.slack_notify() {
   def short_revision
   String tcpdirect_version_short, tcpdirect_version_long
   def version_info
+  def onload_tarball
 
 
   // grab all the sources and stash them for other stages
@@ -93,11 +94,10 @@ nm.slack_notify() {
 
       stash(name: 'tcpdirect-src', includes: 'tcpdirect/**', useDefaultExcludes: true)
 
-      dir('onload') {
-        // This just uses the raw checkout from onload, do we want to use a mkdist tarball?
-        Map optionsMap = ['branch':version_info['products']['Onload']['version']]
-        scmmanager.cloneGit(optionsMap, version_info['products']['Onload']['repo_source'])
-      }
+      onload_tarball = utils.getLatestOnloadTarball(version_info['products']['Onload']['version'])
+      sh(script: "mkdir -p onload")
+      sh(script: "tar xzf ${onload_tarball} -C onload --strip-components=1")
+      stash(name: 'onload-tar', includes: onload_tarball, useDefaultExcludes: true)
       stash(name: 'onload-src', includes: 'onload/**', useDefaultExcludes: true)
 
       dir('packetdrill-tcpdirect') {
@@ -200,15 +200,13 @@ nm.slack_notify() {
     stage("Build TCPDirect Tarball") {
       sh 'rm -fr tcpdirect onload'
       unstash('tcpdirect-src')
-      unstash('onload-src')
+      unstash('onload-tar')
       sh 'ls -lad $PWD'
       def CC = sh(script: 'ls -1d /opt/rh/devtoolset-{11,10,9,8}/root/usr/bin/cc $(which cc) 2>/dev/null | head -1',
                     returnStdout: true)
       sh """#!/bin/bash
         export CC=${CC}
-        export ONLOAD_TREE=\$PWD/onload
-        tcpdirect/scripts/zf_mkdist_build --onload_tree \$ONLOAD_TREE
-        tcpdirect/scripts/zf_make_tarball --version ${tcpdirect_version_long}
+        tcpdirect/scripts/zf_mkdist --version ${tcpdirect_version_long} ${onload_tarball}
       """
       extractNotes("tcpdirect/scripts", "tcpdirect/build/tcpdirect-${tcpdirect_version_long}.tgz")
       dir('tcpdirect/build/') {
