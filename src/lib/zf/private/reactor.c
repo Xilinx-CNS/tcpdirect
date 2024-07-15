@@ -151,16 +151,18 @@ zf_reactor_handle_rx_ref_discard(struct zf_stack* st, int nic, ef_vi *vi,
 }
 
 
+/* This function places a packet prefix at `dest` for a received EFCT packet.
+ * The `efpkt` parameter takes the value retrieved from `efct_vi_rxpkt_get` */
 ZF_HOT static void
-efct_pkt_prefix(ef_vi* vi, char* pkt, uint32_t pkt_id)
+efct_pkt_prefix(ef_vi* vi, char* dest, const void* efpkt)
 {
   ef_precisetime ts;
-  int rc = ef_vi_receive_get_precise_timestamp(vi, pkt, &ts);
-  *(uint32_t*)(pkt + RX_PREFIX_TSYNC_MAJOR_OFST) = ts.tv_sec;
-  *(uint32_t*)(pkt + RX_PREFIX_TSYNC_MINOR_OFST) = ts.tv_nsec;
-  *(uint16_t*)(pkt + RX_PREFIX_NICNO_OFST) = RX_PREFIX_NICNO_EFCT;
-  *(uint16_t*)(pkt + RX_PREFIX_TS_FLAGS_OFST) = ts.tv_flags;
-  *(uint16_t*)(pkt + RX_PREFIX_TS_RESULT_OFST) = -rc;
+  int rc = ef_vi_receive_get_precise_timestamp(vi, efpkt, &ts);
+  *(uint32_t*)(dest + RX_PREFIX_TSYNC_MAJOR_OFST) = ts.tv_sec;
+  *(uint32_t*)(dest + RX_PREFIX_TSYNC_MINOR_OFST) = ts.tv_nsec;
+  *(uint16_t*)(dest + RX_PREFIX_NICNO_OFST) = RX_PREFIX_NICNO_EFCT;
+  *(uint16_t*)(dest + RX_PREFIX_TS_FLAGS_OFST) = ts.tv_flags;
+  *(uint16_t*)(dest + RX_PREFIX_TS_RESULT_OFST) = -rc;
 }
 
 
@@ -233,7 +235,7 @@ zf_reactor_process_event(struct zf_stack* st, int nic, ef_vi* vi, ef_event* ev)
                    (uintptr_t) (base + rx_prefix_len);
     zf_assume_le(frame_len, space);
 
-    efct_pkt_prefix(vi, base, ev->rx_ref.pkt_id);
+    efct_pkt_prefix(vi, base, space_start);
     efct_pkt_memcpy(base + rx_prefix_len, space_start, frame_len);
     efct_vi_rxpkt_release(vi, elusive_id);
 
@@ -339,7 +341,8 @@ zf_reactor_wait_for_rx_event(struct zf_stack* stack, int nic, pkt_id packet_id,
                            __FUNCTION__, ev.rx_ref.pkt_id);
         zf_assume(stack->nic[nic].rx_prefix_len == ES_DZ_RX_PREFIX_SIZE);
         char* base = PKT_BUF_RX_START_BY_ID(&stack->pool, packet_id);
-        efct_pkt_prefix(vi, base, ev.rx_ref.pkt_id);
+        const void* pkt = efct_vi_rxpkt_get(vi, ev.rx_ref.pkt_id);
+        efct_pkt_prefix(vi, base, pkt);
         if( ev.rx_ref.len > BYTES_IN_FIRST_EFCT_LINE )
           efct_pkt_memcpy(base + ES_DZ_RX_PREFIX_SIZE + BYTES_IN_FIRST_EFCT_LINE,
                           stack->efct_current_rx + BYTES_IN_FIRST_EFCT_LINE,
