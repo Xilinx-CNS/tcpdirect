@@ -1153,7 +1153,7 @@ static void emu_deliver_x3(emu_state* emu, emu_vi* evi,
 
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  uint64_t timestamp = (ts.tv_sec << 32) | (ts.tv_nsec << 2);
+  uint64_t timestamp = (ts.tv_sec << 32) | (ts.tv_nsec);
 
   uint64_t poisoned = 0;
   __builtin_memcpy((char*)&poisoned + 2, txbuf, 6);
