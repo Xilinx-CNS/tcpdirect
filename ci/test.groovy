@@ -206,7 +206,7 @@ nm.slack_notify() {
                     returnStdout: true)
       sh """#!/bin/bash
         export CC=${CC}
-        tcpdirect/scripts/zf_mkdist --version ${tcpdirect_version_long} ${onload_tarball}
+        tcpdirect/scripts/zf_mkdist --version ${tcpdirect_version_long} --name tcpdirect ${onload_tarball}
       """
       extractNotes("tcpdirect/scripts", "tcpdirect/build/tcpdirect-${tcpdirect_version_long}.tgz")
       dir('tcpdirect/build/') {

@@ -33,6 +33,7 @@ usage() {
     echo "options:"
     echo "  --version <version>"
     echo "  --shim"
+    echo "  --name <tarball_prefix>"
     echo
     exit 1
 }
@@ -61,7 +62,7 @@ grab_artifacts_from_tmpdir() {
 
 make_release_package() {
     package_version="$1"
-    "${top_dir}"/scripts/zf_make_tarball --version "${package_version}"
+    "${top_dir}"/scripts/zf_make_tarball --version "${package_version}" --name "${name}"
 }
 
 
@@ -162,6 +163,7 @@ build_zf() {
 version=
 stripped=true
 shim=false
+name="zf"
 build_opts=""
 onload_tarball=
 tarball_count=0
@@ -171,6 +173,7 @@ while [ $# -gt 0 ]; do
         --version)  shift; version="$1";;
         --unstripped) stripped=false;;
         --shim) shim=true;;
+        --name) shift; name="$1";;
         -*)  usage;;
         *)  onload_tarball="$1"; tarball_count=$((tarball_count+1));;
     esac
