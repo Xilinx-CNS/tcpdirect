@@ -903,6 +903,20 @@ int tcp_output(struct zf_tcp* tcp)
                                     eff_right_edge) ) {
     struct tcphdr* tcp_hdr = tcp_seg_tcphdr(seg);
 
+    /* This segment is a retransmission if:
+     * - its sequence number is not the next sequence number (i.e., we have
+     *   sent this sequence before, but have not yet had an ACK); or
+     * - the segment is marked as `in_flight`. This means that we have sent the
+     *   segment before, but have not yet processed a TX completion event for
+     *   the segment.
+     *
+     * Notably, we must store the state of `seg->in_flight` **BEFORE** we call
+     * `tcp_output_segment`, as that will result in `seg->in_flight` being set
+     * for all (successfully sent) segments.
+     */
+    const bool is_retransmit = (tcp_seg_seq(seg) != pcb->snd_nxt ||
+                                seg->in_flight);
+
     zf_assert_nequal(tcp_hdr->rst, 1);
 
     zf_log_tcp_tx_trace(tcp, "%s: snd_right_edge %u, cwnd %u, "
@@ -956,7 +970,7 @@ int tcp_output(struct zf_tcp* tcp)
       else if( tcp_hdr->fin ) {
         flags |= ZF_PKT_REPORT_TCP_FIN;
       }
-      if( tcp_seg_seq(seg) != pcb->snd_nxt ) {
+      if( is_retransmit ) {
         flags |= ZF_PKT_REPORT_TCP_RETRANS;
       }
       zf_tx_reports::prepare(&stack->tx_reports,
@@ -1032,14 +1046,13 @@ static int tcp_output_segment(struct zf_tcp* tcp, struct tcp_seg *seg)
   /* Stop zwin timer */
   zf_tcp_timers_timer_stop(tcp, ZF_TCP_TIMER_ZWIN);
 
-  /* Do not retransmit a segment which has not got out of NIC. */
+  /* If we have not yet processed a TX completion for this segment, then the
+   * packet might still exist in a buffer, so we should send it either by PIO
+   * or by copying the packet to a new buffer. */
   if( seg->in_flight ) {
     zf_log_tcp_tx_trace(tcp, "%s: in-flight %u:%u\n", __func__,
                         tcp_seg_seq(seg), tcp_seg_seq(seg) + seg->len);
-    /* Make sure the segment is sent in fire and forget mode,
-     * that is either with PIO or with a buffer copy to be freed at
-     * tx complete */
-    send_flags = ZF_REQ_ID_PIO_FLAG | ZF_REQ_ID_PROTO_TCP_FREE | PKT_INVALID;
+    send_flags = ZF_REQ_ID_PIO_FLAG | ZF_REQ_ID_PROTO_TCP_KEEP | PKT_INVALID;
   }
 
   tcp_output_timers_common(stack, tcp, tcp_seg_seq(seg));
