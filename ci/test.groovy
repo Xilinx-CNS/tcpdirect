@@ -221,9 +221,8 @@ nm.slack_notify() {
       "publish release rpm": {
         node("publish-rpm-parallel") {
           deleteDir()
-          unstash('tcpdirect-release-tarball')
           unstash('tcpdirect-src')
-          sh "tcpdirect/scripts/zf_make_official_srpm tcpdirect-${tcpdirect_version_long}.tgz --version ${tcpdirect_version_long}"
+          sh "tcpdirect/scripts/zf_make_official_srpm --version ${tcpdirect_version_long}"
           archiveArtifacts allowEmptyArchive: true, artifacts: '*.src.rpm', followSymlinks: false
           unstash('text_files')
           zip_and_archive_files(

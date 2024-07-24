@@ -9,89 +9,88 @@ log()  { err "$me: $*"; }
 fail() { log "$*"; exit 1; }
 try()  { "$@" || fail "FAILED: $*"; }
 
+my_dir=$(cd "$(dirname "$0")" && /bin/pwd)
+top_dir=$(dirname "${my_dir}")
 
-usage_msg() {
-  err
-  err "usage:"
-  err "  $me <tcpdirect-tarball>"
-  err
-  err "options:"
-  err
-}
-
+tarball_files_from="
+versions.yaml
+Makefile
+Makefile.onload
+Makefile-top.inc
+doc
+src
+scripts/debian-templ
+scripts/tcpdirect_misc/tcpdirect-extract-notes
+scripts/zf_debug
+scripts/zf_install
+scripts/zf_make_official_deb
+scripts/zf_make_official_srpm
+scripts/zf_make_tarball
+scripts/zf_mkdist
+scripts/zf_uninstall
+"
 
 usage() {
-  usage_msg
+  echo
+  echo "usage:"
+  echo "  $(basename "$0") [options]"
+  echo
+  echo "options:"
+  echo "  --version <version>"
+  echo
   exit 1
 }
 
-
-logtry() {
-  log "$*"
-  try "$@"
-}
-
-
 cleanup() {
-  [ -d "$tmpd" ] && rm -rf "$tmpd"
+  echo "Deleting ${tmpdir}"
+  rm -rf "${tmpdir}"
 }
-
 
 ######################################################################
 # main()
+
 version=
-tarball=
 
 while [ $# -gt 0 ]; do
-    case "$1" in
-        --version)  shift; version="$1";;
-        -*)  usage;;
-        *)  tarball="$1";;
-    esac
-    shift
+  case "$1" in
+    --version)  shift; version="$1";;
+    *)  usage;;
+  esac
+  shift
 done
 
-if [ -z "$version" ]; then
+if [ -z "${version}" ]; then
     version=$(git rev-parse HEAD)
 fi
 
-# [ $# = 1 ] || usage
-# tarball="$1"
+tmpdir=$(mktemp -d "/tmp/${me}.XXXXXXXX")
+zf_prefix="tcpdirect-${version}"
+zf_spec="scripts/tcpdirect_misc/tcpdirect.spec"
+zf_tarball="${tmpdir}/${zf_prefix}.tar"
+zf_tgz="${tmpdir}/${zf_prefix}.tgz"
 
-tmpd=
 trap cleanup EXIT
-tmpd=$(mktemp -d /tmp/$me.XXXXXXXX)
 
-try [ -f "$tarball" ]
-tarballdir=$(cd "$(dirname "$tarball")" && /bin/pwd)
-tarballbase=$(basename "$tarball")
-tarball="$tarballdir/$tarballbase"
-try [ -f "$tarball" ]
+# Create a tarball in tmpdir.
+# shellcheck disable=SC2086
+try tar -c -C "${top_dir}" --transform "s,^,${zf_prefix}/,S" -f "${zf_tarball}" -- ${tarball_files_from}
 
-original_wd=$(/bin/pwd)
-try cd "$tmpd"
+# Patch and put the SPEC file in tmpdir.
+# shellcheck disable=SC2046
+mkdir -pv $(dirname "${tmpdir}/${zf_prefix}/${zf_spec}")
 
-# Edit the "Packager" line in the rpm spec file and rebuild tarball.
-try tar xf "$tarball"
-distd="$(basename "${tarball%.tgz}")"
-try [ -d "$distd" ]
-tab=$(echo -n -e "\t")
-try rm "$distd/scripts/zf_install" "$distd/scripts/zf_uninstall"
+try sed \
+  -E "s/^.*(%global pkgversion).*$/%define pkgversion ${version}/" "${top_dir}/${zf_spec}" \
+  > "${tmpdir}/${zf_prefix}/${zf_spec}"
 
-try sed -i \
- -e "s/pkgversion-DEFINITION/%define pkgversion $version/g" \
- "$distd/scripts/tcpdirect.spec"
+# Add the patched SPEC file in the tarball.
+try tar -v -C "${tmpdir}" --append -f "${zf_tarball}" -- "${zf_prefix}/${zf_spec}"
 
-tarball=$(basename "$tarball")
-try tar czf "$tarball" --owner=root --group=root "$distd"
+# Compress the tarball.
+try gzip -v "${zf_tarball}"
 
-# Build source rpm.
-try mkdir -p rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
-try rpmbuild --nodeps --define "_topdir $PWD/rpmbuild" -ts "$tarball"
-srpm=$(/bin/ls rpmbuild/SRPMS/*.rpm)
-srpmbase=$(basename "$srpm")
-destfile="$original_wd/$(echo "$srpmbase" | sed -e 's/\.el6//')"
-[ -f "$destfile" ] &&
-  fail "ERROR: '$destfile' already exists.  I will not overwrite."
-try cp "$srpm" "$destfile"
-echo "$destfile"
+# Rename the compressed file extension tar.gz -> tgz.
+try mv -v "${zf_tarball}.gz" "${zf_tgz}"
+
+# Create SRPM.
+try rpmbuild -ts "${zf_tgz}"

@@ -1,9 +1,16 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: (c) 2016-2023 Advanced Micro Devices, Inc.
 ######################################################################
+# RPM spec file for TCPDirect
+#
+# To build a source RPM:
+#   scripts/zf_make_official_srpm --version <version>
+#
+# To build a binary RPM from a source RPM:
+#   rpmbuild --define "onload_tarball <onload_tarball>" --rebuild ~/rpmbuild/SRPMS/tcpdirect-<version>-1.src.rpm
 
 %define _unpackaged_files_terminate_build 0
-pkgversion-DEFINITION
+%{!?pkgversion: %global pkgversion 9.0.0}
 
 Name:           tcpdirect
 Version:        %{pkgversion}
@@ -13,6 +20,8 @@ Summary:        TCPDirect
 License:        MIT AND BSD-3-Clause AND LGPL-3.0
 URL:            https://github.com/Xilinx-CNS/tcpdirect
 Source0:        tcpdirect-%{pkgversion}.tgz
+BuildRequires:  gcc make
+BuildRoot:      %{_builddir}/%{name}-root
 
 Vendor:         Advanced Micro Devices, Inc.
 
@@ -30,11 +39,13 @@ This package comprises the user space components of tcpdirect.
 [ "$RPM_BUILD_ROOT" != / ] && rm -rf "$RPM_BUILD_ROOT"
 mkdir -p $RPM_BUILD_ROOT
 
-
-
+%setup -n %{name}-%{pkgversion}
 
 %build
-tar -xzvf %{_sourcedir}/tcpdirect-%{pkgversion}.tgz -C $RPM_BUILD_ROOT
+scripts/zf_mkdist --version "%{pkgversion}" --name tcpdirect "%{?onload_tarball:%onload_tarball}"
+
+tar -xzvf build/tcpdirect-"%{pkgversion}".tgz -C "${RPM_BUILD_ROOT}"
+
 ls -la $RPM_BUILD_ROOT
 ls -la $RPM_BUILD_ROOT/tcpdirect-%{pkgversion}/scripts
 # $RPM_BUILD_ROOT/tcpdirect-%{pkgversion}/scripts/zf_install
