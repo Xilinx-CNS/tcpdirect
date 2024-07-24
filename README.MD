@@ -20,6 +20,24 @@ Execute the following command from the root of the repository:
 export ONLOAD_TREE={path to the checked out onload repository}
 make
 ```
+
+### Packaging
+Use the [`zf_make_official_srpm`](./scripts/zf_make_official_srpm) script to create an SRPM package:
+
+```bash
+scripts/zf_make_official_srpm --version ${version}
+```
+
+The `${version}` variable can be git hexsha such as `d42f94d5` or a semver string such as `9.0.0`.
+
+Execute the following command to create an RPM package from SRPM:
+
+```bash
+rpmbuild --define "onload_tarball ${onload}" --rebuild ~/rpmbuild/SRPMS/tcpdirect-${version}-1.src.rpm
+```
+
+Here, the `${onload}` variable points to an Onload tarball, and `${version}` is the same as for `zf_make_official_srpm`.
+
 ## How to run unit tests
 
 ### Dependencies
