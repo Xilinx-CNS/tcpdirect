@@ -97,7 +97,8 @@ build_and_copy_artifacts() {
     rm -rf "${build_dir}"/onload
     rm -rf "${build_dir}"/gnu*
     cd "${zf_tmpdir}"
-    make ${make_args}
+    # shellcheck disable=SC2086
+    make ${parallel} ${make_args}
     build_tree=$(ls -d "${build_dir}"/gnu*)
     copy_artifacts "${build_tree}" "${artifact_dir}" "${build_type}"
 }
@@ -165,6 +166,7 @@ stripped=true
 shim=false
 name="zf"
 build_opts=""
+parallel=-j$(nproc)
 onload_tarball=
 tarball_count=0
 
