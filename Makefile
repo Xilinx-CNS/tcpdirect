@@ -6,8 +6,16 @@
 .DEFAULT_GOAL := all
 
 TOP := $(patsubst %/,%,$(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
-
+ifdef ONLOAD_TREE
 include Makefile.onload
+else
+  ifeq ($(ZF_DEVEL),1)
+    $(error ZF_DEVEL unsupported when building from installed onload)
+  endif
+  $(info Using installed onload libraries and headers)
+  CITOOLS_LIB := /usr/lib64/libcitools1.a
+  CIUL_LIB    := /usr/lib64/libciul1.a
+endif
 include Makefile-top.inc
 
 # Use Onload's build-tree structure, unless overridden.

@@ -90,7 +90,7 @@ extern int zf_deinit(void)
 
 
 #include <ci/internal/syscall.h>
-#include "onload_version.h"
+#include ONLOAD_VERSION_HDR
 
 static const char* version =
   "TCPDirect Library version: "ZF_VERSION"\n"

@@ -42,12 +42,16 @@ UT_ALL := $(sort \
   $(UT_LOOP_JENKINS))
 
 
+ifdef ONLOAD_TREE
+  ONLOAD_CFLAGS  := -I$(ONLOAD_TREE)/src/include
+endif
+
 UT_OBJS := $(UT_ALL:%=$(OBJ_CURRENT)/%.o)
 $(UT_OBJS): $(ZF_SHARED_LIB_LINK)
 $(UT_OBJS): ZF_CFLAGS_COMPONENT := \
   $(ZF_CFLAGS_COMMON) \
   $(filter-out -fno-exceptions -fno-threadsafe-statics,$(ZF_CXXFLAGS_COMMON)) \
-  -I$(ONLOAD_TREE)/src/include \
+  $(ONLOAD_CFLAGS) \
   -I$(SRC_CURRENT)
 
 
