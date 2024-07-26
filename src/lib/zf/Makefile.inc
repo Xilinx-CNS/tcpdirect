@@ -50,23 +50,25 @@ ZF_GIT_BRANCH_INFO  := $(shell git symbolic-ref -q --short HEAD)
 public_objects: $(PUBLIC_OBJS)
 .PHONY: public_objects
 
+ifdef ONLOAD_TREE
+  ONLOAD_CFLAGS  := -I$(ONLOAD_TREE)/src/include \
+                    -I$(ONLOAD_UL_BUILD_DIR)/include \
+                    '-DONLOAD_VERSION_HDR="onload_version.h"'
+else
+  ONLOAD_CFLAGS  := '-DONLOAD_VERSION_HDR=<onload/onload_version.h>'
+endif
 # ZF sources are C files that are built as C++ using the cc command.  The
 # reasons being:
 #  * files can stay .c
 #  * gcc does not enable exceptions nor link with stdcpp library (as opposed to
 #    C++).
-# XXX: ZF has no business requiring TRANSPORT_CONFIG_OPT_HDR.  We're pulling
-# in too much from Onload in order to get oo_resource_mmap() and the other
-# wrappers around /dev/onload ops.
 $(LIB_OBJS): ZF_CFLAGS_COMPONENT := \
   $(ZF_CFLAGS_COMMON) \
   $(ZF_CXXFLAGS_COMMON) \
   -fvisibility=hidden \
   $(ONLOAD_VERSION_CFLAGS) \
-  -I$(ONLOAD_TREE)/src/include \
-  -I$(ONLOAD_UL_BUILD_DIR)/include \
+  $(ONLOAD_CFLAGS) \
   -fPIC \
-  '-DTRANSPORT_CONFIG_OPT_HDR=<ci/internal/transport_config_opt_extra.h>' \
   '-DZF_VERSION="$(ZF_SEMANTIC_VERSION) \
   $(ZF_GIT_VERSION_INFO) \
   $(ZF_GIT_BRANCH_INFO)"'
