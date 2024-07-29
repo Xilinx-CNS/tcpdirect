@@ -860,6 +860,7 @@ zf_stackdump [command [stack_ids...]]
 Commands:
   list       List stack(s)
   dump       Show state of stack(s)
+  attr       Show attributes of stack(s)
 
 The default command is 'list'.  Commands iterate over all
 stacks if no stacks are specified on the command line.
@@ -869,22 +870,51 @@ enp4s0f0/0f0         id=10    pid=8845
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # zf_stackdump dump
 ============================================================
-name=enp4s0f0/0f0
+onload version=95264a9bfe 2024-06-13 onload-8.1
+tcpdirect version=8.1.3 onload-8.1 tcpdirect-8.1 0e8b1e3 2024-07-08
+name=ens4f0/112 interface=ens4f0 vlan_id=65535
   pool: pkt_bufs_n=17536 free=17025
-  config: tcp_timewait_ticks=666 tcp_finwait_ticks=666
+  config: tcp_timewait_ticks=666 tcp_finwait_ticks=666 ctpio_threshold=-1
   config: tcp_initial_cwnd=0 ms_per_tcp_tick=90
   alts: n_alts=0
-  stats: ring_refill_nomem=0 discard_csum_bad=0 discard_mcast_mismatch=0
+  stats: ring_refill_nomem=0 cplane_alien_ifindex=0
+         tcp_retransmits=0
+  discards: discard_csum_bad=0 discard_mcast_mismatch=0
          discard_crc_bad=0 discard_trunc=0 discard_rights=0
          discard_ev_error=0 discard_other=0 discard_inner_csum_bad=0
-         cplane_alien_ifindex=0
-nic0: vi=240 flags=0 intf=enp4s0f0 index=6 hw=1A1
-  txq: pio_buf_size=2048
+         non_tcpudp=0
+  hwport_to_nicno: [0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,]
+nic0: vi=274 vi_flags=1000000 nic_flags=6 intf=ens4f0 index=13 hw=1C1
+  txq: pio_buf_size=4096 added=30286 removed=30286
 ============================================================
-UDP RX enp4s0f0/0f0:0
-  filter: lcl=172.16.130.252:8012 rmt=0.0.0.0:0
-  rx: unread=1 begin=0 process=0 end=1
-  udp rx: release_n=1 q_drops=0
+UDP TX ens4f0/112:0 lcl=192.168.131.36:9001 rmt=192.168.131.35:9001 ttl=64
+  path: dst=192.168.131.35 src=192.168.131.36 nic=0
+   L2: 14: 00 0a 35 0e cf a0 00 0f 53 64 50 50 08 00
+   L3: 20: 45 00 00 28 00 00 40 00 40 11 b3 2c c0 a8 83 24 c0 a8 83 23
+   L4:  8: 23 29 23 29 00 14 bf b8
+------------------------------------------------------------
+---------------------attributes-------------------------------
+tx_ring_max=512
+rx_ring_max=512
+tx_timestamping=0
+rx_timestamping=0
+ctpio=1
+ctpio_mode=sf-np
+pio=3
+reactor_spin_count=128
+tcp_timewait_ms=60000
+alt_buf_size=40960
+alt_count=0
+rx_ring_refill_batch_size=16
+tcp_alt_ack_rewind=65536
+tcp_delayed_ack=1
+tcp_finwait_ms=60000
+tcp_wait_for_time_wait=0
+ctpio_max_frame_len=-1
+force_separate_tx_vi=0
+rx_ring_refill_interval=1
+udp_ttl=64
+log_level=11111111
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 \subsection stack_stackdump stackdump output: stack
@@ -941,6 +971,7 @@ UDP RX enp4s0f0/0f0:0
 | -       | rmt                | remote_ip:port.
 | path    | dst                | destination server.
 | path    | src                | source server.
+| -       | ttl                | udp time to live value.
 
 \subsection tcp_stackdump stackdump output: TCP TX/RX
 
@@ -996,5 +1027,57 @@ UDP RX enp4s0f0/0f0:0
 | stats   | msg_more_send_delayed  | num of times there was no send because of MSG_MORE flag.
 | stats   | send_nomem             | num of times there were no free packet buffers to perform a send.
 | stats   | retransmits            | total num of tcp retransmits that have occurred.
+
+\subsection stackdump attr output:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# zf_stackdump attr
+============================================================
+ens4f0/112 id=1     pid=163603
+---------------------attributes-------------------------------
+tx_ring_max=512
+rx_ring_max=512
+tx_timestamping=0
+rx_timestamping=0
+ctpio=1
+ctpio_mode=sf-np
+pio=3
+reactor_spin_count=128
+tcp_timewait_ms=60000
+alt_buf_size=40960
+alt_count=0
+rx_ring_refill_batch_size=16
+tcp_alt_ack_rewind=65536
+tcp_delayed_ack=1
+tcp_finwait_ms=60000
+tcp_wait_for_time_wait=0
+ctpio_max_frame_len=-1
+force_separate_tx_vi=0
+rx_ring_refill_interval=1
+udp_ttl=64
+log_level=11111111
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Title  | Parameter                  | Description
+| :------| :----------------          | :------------------------------------------------
+| tx     |  tx_ring size              | size of the TX descriptor ring
+| rx     |  rx_ring size              | size of the RX descriptor ring
+| tx     |  tx_timestamping           | transmit timestamping
+| rx     |  rx_timestamping           | timestamps to received packets
+| tx     |  ctpio                     | Enable/Disable CTPIO.
+| tx     |  ctpio_mode                | Set the CTPIO mode to use
+| tx     |  pio                       | Enable/Disable PIO buffers
+| config |  reactor_spin_count        | number of iterations of the event processing loop zf_reactor_perform() will make (in the absence of any events) before returning.
+| tx     |  tcp_timewait_ms           | Length of TCP TIME-WAIT timer in ms.
+| tcp    |  alt_buf_size              | Amount of NIC-side buffer space to allocate for use with TCP alternatives on this VI.
+| tx     |  alt_count                 | Number of TCP alternatives to allocate on this VI
+| tx     |  rx_ring_refill_batch_size | Sets the number of packet buffers rx ring is refilled with on each zf_reactor_perform() call
+| tcp    |  tcp_alt_ack_rewind        | The maximum number of bytes by which outgoing ACKs will be allowed to go backwards when sending an alternative queue.
+| tcp    |  tcp_delayed_ack           | Enable TCP delayed ACK ("on" by default).
+| tcp    |  tcp_finwait_ms            | Length of TCP FIN-WAIT-2 timer in ms, 0 - disabled
+| tcp    |  tcp_wait_for_time_wait    | Do not consider a stack to be quiescent if there are any TCP zockets in the TIME_WAIT state
+| tx     |  ctpio_max_frame_len       | Sets the maximum frame length for the CTPIO low-latency transmit 
+| tx     |  force_separate_tx_vi      | Force seting up separate vi with dedicated evq for tx.
+| rx     |  rx_ring_refill_interval   | Sets the frequency of rx buffer ring refilling during inner zf_reactor_perform() loop
+| tx     |  udp_ttl                   | to control TTL on sent UDP packets
+| config |  log_level                 | Bitmask to enable different log message levels for each logging component.
 
 */
