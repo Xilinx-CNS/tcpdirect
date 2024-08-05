@@ -21,6 +21,9 @@ License:        MIT AND BSD-3-Clause AND LGPL-3.0
 URL:            https://github.com/Xilinx-CNS/tcpdirect
 Source0:        tcpdirect-%{pkgversion}.tgz
 BuildRequires:  gcc make
+%if 0%{!?onload_tarball:1}
+BuildRequires:  openonload onload-devel
+%endif
 
 Vendor:         Advanced Micro Devices, Inc.
 

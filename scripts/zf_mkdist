@@ -28,7 +28,9 @@ scripts
 usage() {
     echo
     echo "usage:"
-    echo "  $(basename $0) [options] <onload_tarball>"
+    echo "  $(basename $0) [options] [onload_tarball]"
+    echo
+    echo "(Installed onload & onload-devel utilised when onload_tarball omitted.)"
     echo
     echo "options:"
     echo "  --version <version>"
@@ -46,10 +48,12 @@ cleanup() {
 
 
 copy_files_to_tmpdir() {
-    mkdir -p "${onload_tmpdir}"
     mkdir -p "${zf_tmpdir}"
     tar cz -C "${top_dir}" ${copy_to_tmpdir} | tar xz -C ${zf_tmpdir}
-    cat "${onload_tarball}" | tar xz -C ${onload_tmpdir}
+    if [ -n "$onload_tarball" ]; then
+      mkdir -p "${onload_tmpdir}";
+      cat "${onload_tarball}" | tar xz -C ${onload_tmpdir};
+    fi
 }
 
 
@@ -99,7 +103,11 @@ build_and_copy_artifacts() {
     cd "${zf_tmpdir}"
     # shellcheck disable=SC2086
     make ${parallel} ${make_args}
-    build_tree=$(ls -d "${build_dir}"/gnu*)
+    if [ -n "$onload_tarball" ]; then
+      build_tree=$(ls -d "${build_dir}"/gnu*);
+    else
+      build_tree=$(ls -d "${build_dir}");
+    fi
     copy_artifacts "${build_tree}" "${artifact_dir}" "${build_type}"
 }
 
@@ -147,7 +155,9 @@ build_zf() {
       fi
   fi
 
-  export ONLOAD_TREE="$(ls -1d $onload_tmpdir/*)"
+  if [ -n "$onload_tarball" ]; then
+    export ONLOAD_TREE="$(ls -1d $onload_tmpdir/*)"
+  fi
   artifact_dir="${zf_tmpdir}/build/artifacts/"
   rm -rf ${artifact_dir}
   build_and_copy_artifacts "debug" ${artifact_dir}
@@ -186,7 +196,12 @@ if [ -z "$version" ]; then
     version=$(git rev-parse HEAD)
 fi
 
-[ $tarball_count -eq 1 ] || usage
+[ $tarball_count -eq 1 ] || [ -d /usr/include/ci ] || usage
+
+if $shim && [ -z "$onload_tarball" ]; then
+  echo "In order to build the socket shim, please supply an onload tarball";
+  usage;
+fi
 
 tmpdir=$(mktemp -d)
 onload_tmpdir="${tmpdir}/onload"

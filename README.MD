@@ -33,10 +33,23 @@ The `${version}` variable can be git hexsha such as `d42f94d5` or a semver strin
 Execute the following command to create an RPM package from SRPM:
 
 ```bash
-rpmbuild --define "onload_tarball ${onload}" --rebuild ~/rpmbuild/SRPMS/tcpdirect-${version}-1.src.rpm
+rpmbuild --rebuild ~/rpmbuild/SRPMS/tcpdirect-${version}-1.src.rpm
 ```
 
-Here, the `${onload}` variable points to an Onload tarball, and `${version}` is the same as for `zf_make_official_srpm`.
+Here, the `${version}` variable is the same as for `zf_make_official_srpm`.
+The above command will build the tcpdirect package using the onload libraries
+installed as part of the `onload` rpm package, and the headers from the
+`onload-devel` package.
+
+If you wish to build the tcpdirect package either from a specific onload tarball
+or without installing the system packages, you can add the following to the
+invocation of `rpmbuild` above:
+
+```bash
+--define "onload_tarball ${onload}"
+```
+
+Where the `${onload}` variable points to an Onload tarball.
 
 ## How to run unit tests
 
