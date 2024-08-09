@@ -13,22 +13,22 @@
 ##
 # Setup build directory
 
-my_dir=$(cd $(dirname "$0") && /bin/pwd)
+my_dir=$(cd "$(dirname "$0")" && /bin/pwd)
 top_dir=$(dirname "${my_dir}")
 
-copy_to_tmpdir="
-versions.yaml
-Makefile
-Makefile.onload
-Makefile-top.inc
-src
-scripts
-"
+copy_to_tmpdir=(
+"versions.yaml"
+"Makefile"
+"Makefile.onload"
+"Makefile-top.inc"
+"src"
+"scripts"
+)
 
 usage() {
     echo
     echo "usage:"
-    echo "  $(basename $0) [options] [onload_tarball]"
+    echo "  $(basename "$0") [options] [onload_tarball]"
     echo
     echo "(Installed onload & onload-devel utilised when onload_tarball omitted.)"
     echo
@@ -49,10 +49,10 @@ cleanup() {
 
 copy_files_to_tmpdir() {
     mkdir -p "${zf_tmpdir}"
-    tar cz -C "${top_dir}" ${copy_to_tmpdir} | tar xz -C ${zf_tmpdir}
+    tar cz -C "${top_dir}" "${copy_to_tmpdir[@]}" | tar xz -C "${zf_tmpdir}"
     if [ -n "$onload_tarball" ]; then
       mkdir -p "${onload_tmpdir}";
-      cat "${onload_tarball}" | tar xz -C ${onload_tmpdir};
+      tar xzf "${onload_tarball}" -C "${onload_tmpdir}";
     fi
 }
 
@@ -156,12 +156,13 @@ build_zf() {
   fi
 
   if [ -n "$onload_tarball" ]; then
-    export ONLOAD_TREE="$(ls -1d $onload_tmpdir/*)"
+    ONLOAD_TREE="$(ls -1d "$onload_tmpdir"/*)"
+    export ONLOAD_TREE
   fi
   artifact_dir="${zf_tmpdir}/build/artifacts/"
-  rm -rf ${artifact_dir}
-  build_and_copy_artifacts "debug" ${artifact_dir}
-  build_and_copy_artifacts "release" ${artifact_dir}
+  rm -rf "${artifact_dir}"
+  build_and_copy_artifacts "debug" "${artifact_dir}"
+  build_and_copy_artifacts "release" "${artifact_dir}"
   if [ "$shim" = "true" ]; then
       build_and_copy_artifacts "shim" "${artifact_dir}"
   fi
@@ -172,10 +173,8 @@ build_zf() {
 # main()
 
 version=
-stripped=true
 shim=false
 name="zf"
-build_opts=""
 parallel=-j$(nproc)
 onload_tarball=
 tarball_count=0
@@ -183,7 +182,6 @@ tarball_count=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --version)  shift; version="$1";;
-        --unstripped) stripped=false;;
         --shim) shim=true;;
         --name) shift; name="$1";;
         -*)  usage;;
