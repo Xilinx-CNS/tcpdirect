@@ -2,15 +2,15 @@
 /* SPDX-FileCopyrightText: (c) Advanced Micro Devices, Inc. */
 #ifndef __ZF_INTERNAL_ZF_EMU_H__
 #define __ZF_INTERNAL_ZF_EMU_H__
-#include <netinet/ether.h>
-#include <vector>
+
+#include <cplane/mib.h>
 
 #ifdef __cplusplus
 /* Needed because in C++ an empty struct has a non-zero size. Additionally, a
  * zero-length array is used instead of a standard flexible array member so that
  * it can be used in the middle of a struct without gcc complaining. */
-#undef __DECLARE_FLEX_ARRAY
-#define __DECLARE_FLEX_ARRAY(TYPE, NAME)	\
+#undef CI_DECLARE_FLEX_ARRAY
+#define CI_DECLARE_FLEX_ARRAY(TYPE, NAME)	\
 	struct { \
 		TYPE NAME[0]; \
 	}
@@ -36,30 +36,19 @@ struct efct_tx_ctpio_header
 
 struct ef_vi;
 struct zf_stack;
-using ci_mac_addr_t = uint8_t[ETH_ALEN];
 
 extern void
-zf_emu_intf_add(const char* ifname, int ifindex,
-                const int* hw_ifindices, size_t n_hw_ifindices,
-                uint16_t vlan_id, uint32_t encap, int peer_ifindex,
+zf_emu_intf_add(const char* ifname, cicp_hwport_mask_t rx_hwports,
+                cicp_hwport_mask_t tx_hwports, uint16_t vlan_id,
+                cicp_llap_type_t hash_policy, int peer_vi,
                 const ci_mac_addr_t mac);
-
-static inline void
-zf_emu_intf_add(const char* ifname, int ifindex,
-                std::initializer_list<int> hw_ifindices, uint16_t vlan_id,
-                uint32_t encap, int peer_ifindex,
-                const ci_mac_addr_t mac)
-{
-  return zf_emu_intf_add(ifname, ifindex, hw_ifindices.begin(),
-                         hw_ifindices.size(), vlan_id, encap, peer_ifindex, mac);
-}
 extern void
 zf_emu_remove_all_intfs(void);
 extern void
 zf_emu_set_dst_mac(const ci_mac_addr_t mac);
 
 extern void
-zf_emu_intf_set_intf_up(const char* ifname, bool up);
+zf_emu_intf_set_tx_hwports(const char* if_name, cicp_hwport_mask_t hwports);
 
 extern void
 zf_emu_intf_set_mac(const char* ifname, ci_mac_addr_t mac);
@@ -108,10 +97,6 @@ struct emu_stats {
 
 extern struct emu_stats& emu_stats_update(void);
 void emu_stats_display(struct emu_stats& stats);
-
-const uint32_t CICP_LLAP_TYPE_XMIT_HASH_LAYER2    = 0x00000008;
-const uint32_t CICP_LLAP_TYPE_XMIT_HASH_LAYER34   = 0x00000010;
-const uint32_t CICP_LLAP_TYPE_XMIT_HASH_LAYER23   = 0x00000020;
 
 #endif /* __ZF_INTERNAL_ZF_EMU_H__ */
 
