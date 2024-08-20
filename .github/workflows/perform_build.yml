@@ -14,8 +14,7 @@ jobs:
     timeout-minutes: 1
     outputs:
       tcpdirectBranch: ${{ steps.tcpdirectBranch.outputs.branch }}
-      onloadBranch: ${{ steps.onloadBranch.outputs.branch }}
-      onloadReleaseTag: ${{ steps.onloadReleaseTag.outputs.tag }}
+      onloadPublicTreeish: ${{ steps.onloadPublicTreeish.outputs.tag }}
       packetDrillBranch: ${{ steps.packetDrillBranch.outputs.branch }}
     steps:
       - name: tcpdirect
@@ -33,13 +32,9 @@ jobs:
         id: tcpdirectBranch
         run: echo "branch=$(yq -r '.products.TCPDirect.version' < $GITHUB_WORKSPACE/tcpdirect/versions.yaml)" >> "$GITHUB_OUTPUT"
 
-      - name: Extract onload branch name
-        id: onloadBranch
-        run: echo "branch=$(yq -r '.products.Onload.version' < $GITHUB_WORKSPACE/tcpdirect/versions.yaml)" >> "$GITHUB_OUTPUT"
-
-      - name: Extract onload release tag
-        id: onloadReleaseTag
-        run: echo "tag=$(yq -r '.products.Onload.release_tag' < $GITHUB_WORKSPACE/tcpdirect/versions.yaml)" >> "$GITHUB_OUTPUT"
+      - name: Extract public onload tree-ish
+        id: onloadPublicTreeish
+        run: echo "tag=$(yq -r '.products.Onload.public_tree_ish' < $GITHUB_WORKSPACE/tcpdirect/versions.yaml)" >> "$GITHUB_OUTPUT"
 
       - name: Extract packetDrill branch name
         id: packetDrillBranch
@@ -57,23 +52,12 @@ jobs:
         with:
           path: tcpdirect
 
-      - name: onload checkout
-        id: onloadCheckoutStep
-        continue-on-error: true
+      - name: onload checkout public tree-ish
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/onload
           path: onload
-          ref: ${{ needs.extract_branch_info.outputs.onloadBranch }}
-
-      - name: onload checkout tag
-        if: ${{ steps.onloadCheckoutStep.outcome == 'failure' &&
-                needs.extract_branch_info.output.onloadReleaseTag != 'null' }}
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository_owner }}/onload
-          path: onload
-          ref: ${{ needs.extract_branch_info.outputs.onloadReleaseTag }}
+          ref: ${{ needs.extract_branch_info.outputs.onloadPublicTreeish }}
 
       - name: packetdrill checkout
         uses: actions/checkout@v4
