@@ -9,8 +9,8 @@
 /* Needed because in C++ an empty struct has a non-zero size. Additionally, a
  * zero-length array is used instead of a standard flexible array member so that
  * it can be used in the middle of a struct without gcc complaining. */
-#undef __DECLARE_FLEX_ARRAY
-#define __DECLARE_FLEX_ARRAY(TYPE, NAME)	\
+#undef CI_DECLARE_FLEX_ARRAY
+#define CI_DECLARE_FLEX_ARRAY(TYPE, NAME)	\
 	struct { \
 		TYPE NAME[0]; \
 	}
