@@ -125,10 +125,10 @@ void zfut_dump(SkewPointer<zf_stack> stack, SkewPointer<zf_udp_tx> udp_tx)
   ZF_INET_NTOP_DECLARE_BUF(rbuf);
 
   zf_dump("UDP TX %." ZF_STRINGIFY(ZF_STACK_NAME_SIZE)
-          "s:%u lcl=%s:%d rmt=%s:%u\n",
+          "s:%u lcl=%s:%d rmt=%s:%u ttl=%d\n",
           stack->st_name, UDP_TX_ID(stack, udp_tx),
           ZF_INET_NTOP_CALL(ip->saddr, lbuf), ntohs(udp->source),
-          ZF_INET_NTOP_CALL(ip->daddr, rbuf), ntohs(udp->dest));
+          ZF_INET_NTOP_CALL(ip->daddr, rbuf), ntohs(udp->dest), ip->ttl);
   zf_waitable_dump(udp_tx.propagate_skew(&udp_tx->w));
   zf_tx_dump(&udp_tx->tx, IPPROTO_UDP);
 }

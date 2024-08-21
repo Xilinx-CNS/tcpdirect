@@ -16,6 +16,9 @@ zf_stack_dump(struct zf_stack* stack);
 ZF_LIBENTRY ZF_COLD void
 zf_stack_dump_summary(struct zf_stack* stack);
 
+ZF_LIBENTRY ZF_COLD void
+zf_stack_dump_attr(struct zf_stack* stack);
+
 ZF_LIBENTRY ZF_COLD int
 zf_get_all_stack_shm_ids(int onload_dh, int* shm_ids, size_t count);
 

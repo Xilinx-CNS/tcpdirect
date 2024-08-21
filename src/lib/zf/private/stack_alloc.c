@@ -821,6 +821,27 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
 
   st->encap_type = if_cplane_info.encap;
   sti->sti_ifindex = ifindex;
+  sti->sti_ctpio = attr->ctpio;
+  sti->sti_tx_ring_max = attr->tx_ring_max;
+  sti->sti_alt_buf_size = attr->alt_buf_size;
+  sti->sti_alt_count = attr->alt_count;
+  sti->sti_rx_ring_max = attr->rx_ring_max;
+  sti->sti_rx_ring_refill_batch_size = attr->rx_ring_refill_batch_size;
+  sti->sti_rx_timestamping = attr->rx_timestamping;
+  sti->sti_tcp_alt_ack_rewind = attr->tcp_alt_ack_rewind;
+  sti->sti_tcp_delayed_ack = attr->tcp_delayed_ack;
+  sti->sti_tcp_finwait_ms = attr->tcp_finwait_ms;
+  sti->sti_tcp_timewait_ms = attr->tcp_timewait_ms;
+  sti->sti_tcp_wait_for_time_wait = attr->tcp_wait_for_time_wait; 
+  sti->sti_tx_timestamping = attr->tx_timestamping;
+  sti->sti_ctpio_max_frame_len = attr->ctpio_max_frame_len;
+  sti->sti_force_separate_tx_vi = attr->force_separate_tx_vi;
+  sti->sti_pio = attr->pio;
+  sti->sti_reactor_spin_count = attr->reactor_spin_count;
+  sti->sti_rx_ring_refill_interval = attr->rx_ring_refill_interval;
+  sti->sti_udp_ttl = attr->udp_ttl;
+  sti->sti_log_level = attr->log_level;
+  strncpy(sti->sti_ctpio_mode, attr->ctpio_mode, 8);
   if( st->encap_type & EF_CP_ENCAP_F_VLAN )
     sti->sti_vlan_id = if_cplane_info.vlan_id;
   else
@@ -917,7 +938,6 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
     if( rc < 0 )
       goto fail4;
   }
-
   if( attr->name )
     strncpy(st->st_name, attr->name, sizeof(st->st_name));
   else
