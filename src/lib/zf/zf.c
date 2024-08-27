@@ -116,8 +116,11 @@ fail:
 extern int zf_deinit(void)
 {
   zf_state.cp.fini(zf_state.cp_handle);
-  dlclose(zf_state.efcp_so_handle);
-  FOR_EACH_EF_CP_FUNCTION(CP_FUNC_SET_TO_ERR);
+  if (zf_state.efcp_so_handle && zf_state.efcp_so_handle != &zf_state)
+  {
+    dlclose(zf_state.efcp_so_handle);
+    FOR_EACH_EF_CP_FUNCTION(CP_FUNC_SET_TO_ERR);
+  }
   zf_log_stderr();
   return 0;
 }
