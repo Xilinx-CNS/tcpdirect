@@ -48,6 +48,7 @@ int zf_init(void)
     if( ! zf_state.efcp_so_handle ) {
       zf_log_stack_err(NO_STACK, "%s: Failed to open ef_vi Control Plane: %s\n",
                       __func__, dlerror());
+      rc = -ENOENT;
       goto fail;
     }
 
@@ -57,6 +58,7 @@ int zf_init(void)
     if( ! zf_state.cp.x ) { \
       zf_log_stack_err(NO_STACK, "%s: Failed to link to ef_vi Control Plane: %s\n", \
                       __func__, #x); \
+      rc = -ENOENT; \
       goto fail1; \
     }
     FOR_EACH_EF_CP_FUNCTION(CP_FUNC_INIT_FUNC_PTR)
