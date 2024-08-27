@@ -16,10 +16,16 @@
     OP(register_intf) \
     OP(resolve)
 
+#define CP_FUNC_TYPE(x) \
+  decltype(ef_cp_##x)
+
+#define CP_FUNC_PTR_TYPE(x) \
+  decltype(&ef_cp_##x)
+
 struct zf_state {
   struct ef_cp_handle* cp_handle;
   struct {
-#define CP_FUNC_DEFINE_FUNC_PTR(x)  decltype(&ef_cp_##x) x;
+#define CP_FUNC_DEFINE_FUNC_PTR(x)  CP_FUNC_PTR_TYPE(x) x;
     FOR_EACH_EF_CP_FUNCTION(CP_FUNC_DEFINE_FUNC_PTR)
   } cp;
   void* efcp_so_handle;
