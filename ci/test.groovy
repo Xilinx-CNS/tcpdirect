@@ -206,14 +206,18 @@ nm.slack_notify() {
         node("publish-rpm-parallel") {
           deleteDir()
           unstash('tcpdirect-src')
-          sh "tcpdirect/scripts/zf_make_official_srpm --version ${tcpdirect_version_long}"
-          archiveArtifacts allowEmptyArchive: true, artifacts: '*.src.rpm', followSymlinks: false
+          String workspace = pwd()
+          String outdir = "${workspace}/rpmbuild"
+          sh(script: "mkdir -p ${outdir}")
+          sh "tcpdirect/scripts/zf_make_official_srpm --version ${tcpdirect_version_long} --outdir ${outdir}"
+          archiveArtifacts allowEmptyArchive: true, artifacts: 'rpmbuild/SRPMS/*.src.rpm', followSymlinks: false
           unstash('text_files')
           zip_and_archive_files(
-          "tcpdirect-${tcpdirect_version_long}-srpm-doxbox.zip",
-          '*.src.rpm',
-          '*.txt'
-        )
+            "tcpdirect-${tcpdirect_version_long}-srpm-doxbox.zip",
+            'rpmbuild/SRPMS/*.src.rpm',
+            '*.txt'
+          )
+          sh "rm -rf ${outdir}"
         }
       },
       "publish release deb": {
