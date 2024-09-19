@@ -37,6 +37,7 @@ usage() {
   echo
   echo "options:"
   echo "  --version <version>"
+  echo "  --outdir <path>     - Location for the output srpm file."
   echo
   exit 1
 }
@@ -50,10 +51,12 @@ cleanup() {
 # main()
 
 version=
+outdir=
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --version)  shift; version="$1";;
+    --outdir)  shift; outdir="$1";;
     *)  usage;;
   esac
   shift
@@ -93,4 +96,9 @@ try gzip -v "${zf_tarball}"
 try mv -v "${zf_tarball}.gz" "${zf_tgz}"
 
 # Create SRPM.
-try rpmbuild -ts "${zf_tgz}"
+rpmbuild_args=()
+if [ -n "$outdir" ]; then
+  rpmbuild_args=(--define "_topdir $outdir");
+fi
+
+try rpmbuild -ts "${zf_tgz}" "${rpmbuild_args[@]}"
