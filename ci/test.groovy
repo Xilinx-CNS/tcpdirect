@@ -124,7 +124,6 @@ nm.slack_notify() {
         }
       },
       'build libzf_sockets': {
-        // This step produces artifacts, so let's have it build with predictable environment
         node('unit-test-master') {
           sh 'rm -fr tcpdirect onload'
           unstash('tcpdirect-src')
@@ -139,13 +138,6 @@ nm.slack_notify() {
             export ZF_DEVEL=1
             make -C tcpdirect shim
           """
-          dir('tcpdirect/build/gnu_x86_64-zf-devel/lib/') {
-            stash(
-              name: "zf-libzf_sockets",
-              includes: 'libzf_sockets.so',
-            )
-          }
-          
         }
       },
       'run tests': {
