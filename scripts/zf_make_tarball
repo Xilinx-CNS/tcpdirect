@@ -18,11 +18,7 @@ make_release_package() {
     rm -rf "${stage_dir}"
     mkdir -p "${stage_dir}"
 
-    if [ "$stripped" = true ]; then
-        cp -r "${build_dir}"/artifacts/stripped/* "${stage_dir}"
-    else
-        cp -r "${build_dir}"/artifacts/unstripped/* "${stage_dir}"
-    fi
+    cp -r "${build_dir}"/artifacts/* "${stage_dir}"
 
     if [ -d "${build_dir}/artifacts/shim" ]; then
         cp -r "${build_dir}/artifacts/shim" "${stage_dir}"
@@ -69,11 +65,7 @@ make_release_package() {
             xargs -I{} cp {} "${stage_dir}/${subdir}"
     done
 
-    if [ "$stripped" = true ]; then
-        package="${package_name}.tgz"
-    else
-        package="${package_name}-unstripped.tgz"
-    fi
+    package="${package_name}.tgz"
 
     cd "${build_dir}"
 
@@ -87,14 +79,12 @@ make_release_package() {
 }
 
 version=
-stripped=true
 name_prefix="tcpdirect"
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --version)  shift; version="$1";;
         --name) shift; name_prefix="$1";;
-        --unstripped) stripped=false;;
         -*)  usage;;
     esac
     shift

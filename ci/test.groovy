@@ -206,14 +206,6 @@ nm.slack_notify() {
       }
       stash(name: "tcpdirect-build-artifacts", includes: "tcpdirect/build/artifacts/**")
     }
-
-    stage('Archive unstripped binaries') {
-      sh "tcpdirect/scripts/zf_make_tarball --version ${tcpdirect_version_long} --unstripped"
-      dir('tcpdirect/build/') {
-        archiveArtifacts artifacts: '*unstripped*.tgz', allowEmptyArchive: true
-        sh 'rm -f *unstripped*.tgz'
-      }
-    }
   }
 
   stage('Build packages') {

@@ -42,7 +42,6 @@ PATH="$bin:$PATH:/usr/sbin:/sbin"; export PATH
 TOP=$(cd "$bin/.." && /bin/pwd)
 outdir=$(pwd)
 version=
-stripped=true
 
 while [ $# -gt 0 ]; do
   case "$1" in

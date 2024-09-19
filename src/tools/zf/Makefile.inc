@@ -4,7 +4,6 @@ TOOLS := zf_stackdump
 
 TOOL_OBJS := $(TOOLS:%=$(OBJ_CURRENT)/%.o)
 TOOL_BINS := $(TOOLS:%=$(BIN_ROOT)/%)
-STRIPPED_BINS := $(TOOLS:%=$(BIN_ROOT)/stripped/%)
 
 ifdef ONLOAD_TREE
   ONLOAD_CFLAGS  := -I$(ONLOAD_TREE)/src/include
@@ -20,10 +19,6 @@ $(TOOL_BINS): $(BIN_ROOT)/% : $(OBJ_CURRENT)/%.o $(ZF_STATIC_LIB)
 	@mkdir -p $(dir $@)
 	$(CLINK) -m64 -O2 -g -Wl,-E $^ $(STATIC_ZF_LIB) -lm -lpthread -lrt -ldl -o $@
 
-$(STRIPPED_BINS): $(BIN_ROOT)/stripped/%: $(BIN_ROOT)/%
-	@mkdir -p $(dir $@)
-	strip $< -o $@
-
 .PHONY: tools
 all: tools
-tools: $(STRIPPED_BINS)
+tools: $(TOOL_BINS)

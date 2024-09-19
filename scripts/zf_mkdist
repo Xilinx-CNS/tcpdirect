@@ -123,24 +123,15 @@ copy_artifacts() {
         return
     fi
 
-    lib_dir_stripped="${dest_dir}/stripped/${build_type}/lib"
-    lib_dir_unstripped="${dest_dir}/unstripped/${build_type}/lib"
-    bin_dir_stripped="${dest_dir}/stripped/${build_type}/bin"
-    bin_dir_unstripped="${dest_dir}/unstripped/${build_type}/bin"
-    mkdir -p "${lib_dir_stripped}"
-    mkdir -p "${lib_dir_unstripped}"
-    mkdir -p "${bin_dir_stripped}"
-    mkdir -p "${bin_dir_unstripped}"
+    lib_dir="${dest_dir}/${build_type}/lib"
+    bin_dir="${dest_dir}/${build_type}/bin"
+    mkdir -p "${lib_dir}"
+    mkdir -p "${bin_dir}"
 
-    # Copy stripped binaries
-    cp -a "${build_dir}"/bin/stripped/zf_stackdump "${bin_dir_stripped}"
-    cp -a "${build_dir}"/lib/stripped/libonload_zf_static.a "${lib_dir_stripped}"
-    cp -a "${build_dir}"/lib/stripped/libonload_zf.so* "${lib_dir_stripped}"
-
-    #Copy unstripped binaries
-    cp -a "${build_dir}"/bin/zf_stackdump "${bin_dir_unstripped}"
-    cp -a "${build_dir}"/lib/libonload_zf_static.a "${lib_dir_unstripped}"
-    cp -a "${build_dir}"/lib/libonload_zf.so* "${lib_dir_unstripped}"
+    # Copy binaries
+    cp -a "${build_dir}"/bin/zf_stackdump "${bin_dir}"
+    cp -a "${build_dir}"/lib/libonload_zf_static.a "${lib_dir}"
+    cp -a "${build_dir}"/lib/libonload_zf.so* "${lib_dir}"
 }
 
 
