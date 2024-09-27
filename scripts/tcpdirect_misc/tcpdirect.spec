@@ -22,7 +22,7 @@ URL:            https://github.com/Xilinx-CNS/tcpdirect
 Source0:        tcpdirect-%{pkgversion}.tgz
 BuildRequires:  gcc make
 %if 0%{!?onload_tarball:1}
-BuildRequires:  openonload onload-devel
+BuildRequires:  openonload openonload-devel
 %endif
 
 Vendor:         Advanced Micro Devices, Inc.
