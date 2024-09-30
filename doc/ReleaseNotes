@@ -30,7 +30,7 @@ TCPDirect distributed as source code
   package.
 
 
-Installation (TBD: update this section)
+Installation
 ------------
 
   To install TCPDirect from a tarball:
@@ -59,6 +59,9 @@ Installation (TBD: update this section)
 
   To install TCPDirect from a Source RPM:
 
+    0. The Source RPM depends upon the openonload and openonload-devel packages
+       in addition to any other dependencies.
+
     1. Build the binary RPM from the source RPM file:
 
          rpmbuild --rebuild <source_rpm_path>
@@ -75,6 +78,16 @@ Installation (TBD: update this section)
        install the binary RPM. For example:
 
          rpm -Uvh <path>/tcpdirect-<module_version>.rpm
+
+
+  To install TCPDirect from a DEB:
+
+    0. The DEB package depends on an *onload-user package in addition to any
+       other dependencies.
+
+    1. Install the DEB package with the following command:
+
+         dpkg -i tcpdirect_<version>-1_amd64.deb
 
 
 SPDX-License-Identifier: MIT
