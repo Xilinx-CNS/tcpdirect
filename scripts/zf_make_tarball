@@ -36,12 +36,7 @@ make_release_package() {
 
 
     # Add documents to tarball
-    # Currently only ReleaseNotes exists (in a separate branch), so checks are added for each file
     if [ -d "$doc_dir" ]; then
-        if [ -f "${doc_dir}/ReleaseNotes" ]; then
-            cp "${doc_dir}/ReleaseNotes" "${stage_dir}"
-        fi
-
         if [ -f "${doc_dir}/LICENSE" ]; then
             cp "${doc_dir}/LICENSE" "${stage_dir}"
         fi
