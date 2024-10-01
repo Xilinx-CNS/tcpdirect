@@ -22,16 +22,12 @@ lib64_path() {
 usage() {
   err
   err "usage:"
-  err "  $me [options] <staged_tree>"
+  err "  $me [options] <zf_tarball>"
   err
   err "options:"
   err "  --out <path>        - directory to write source package to"
   err "  --version <version> - version number for debian package"
   err
-  err "notes:"
-  err "  prepare an appropriate staging directory. Example usage:"
-  err "    zf_install --packaging --dest-dir staging/usr"
-  err "    $me staging"
   exit 1
 }
 
@@ -55,7 +51,7 @@ done
 
 [ $# -eq 1 ] || usage
 
-staged=$1
+tarball=$1
 
 if [ ! -d "$outdir" ]; then
   echo "$outdir does not appear to be a directory";
@@ -67,11 +63,9 @@ if [ -z "$version" ]; then
 fi
 
 # soversion=$(awk '/^ONLOAD_EXT_VERSION_MAJOR/{print $3}' $TOP/../mk/site/libs.mk)
-deb_ver="1"
-arch="amd64"
 package_name="tcpdirect"
 package="${package_name}_${version}"
-tcpdirect_dir="${package}-${deb_ver}_${arch}"
+tcpdirect_dir="${package_name}-${version}"
 tempfile=$(mktemp -d)
 
 if [ ! -d "$tempfile" ]; then
@@ -81,28 +75,34 @@ fi
 
 echo "Creating package $package in $tempfile"
 
-try mkdir -p "$tempfile/$tcpdirect_dir/DEBIAN"
+try cp "${tarball}" "${tempfile}/${package}.orig.tar.gz"
+try mkdir -p "$tempfile/$tcpdirect_dir/debian"
 
 # Make any necessary replacements in the control files
-for i in "$TOP"/scripts/debian-templ/*; do
-  try sed -e "s/#VERSION#/$version/g" -e "s|#LIBDIR#|"$(lib64_path)"|g" < "$i" > "${tempfile}/${tcpdirect_dir}/DEBIAN/$(basename "$i")";
+find "$TOP"/scripts/debian-templ/* -type f | while read -r i; do
+  debfile="${tempfile}/${tcpdirect_dir}/debian/$(basename "$i")"
+  try sed -e "s/#VERSION#/$version/g" -e "s|#LIBDIR#|$(lib64_path)|g" < "$i" > "$debfile";
 done
 
 # Accoding to the Debian Policy Manual, executable maintainer scripts should be
 # owned by root:root and have mode 755
 for i in postinst postrm; do
-  try chmod 0755 "${tempfile}/${tcpdirect_dir}/DEBIAN/$i"
+  try chmod 0755 "${tempfile}/${tcpdirect_dir}/debian/$i"
 done
 
-dest_dir="${tempfile}/${tcpdirect_dir}"
-
-try cp -a ${staged}/* "${dest_dir}"
-
 try cd "$tempfile"
-try fakeroot dpkg-deb -b "$tcpdirect_dir"
-try mv "$tcpdirect_dir.deb" "$outdir/"
+try tar xf "$package.orig.tar.gz" -C "$tcpdirect_dir" --strip-components=1
+try cd "$tcpdirect_dir/debian"
+try debuild -S -i -uc -us -d
+try cd "$tempfile"
+
+echo "Using package components:"
+ls -- *.[gx]z *.dsc
+
+try tar zcf "$package-debiansource.tgz" --owner=root --group=root -- *.[gx]z *.dsc
+try mv "$package-debiansource.tgz" "$outdir/"
 try rm -rf "$tempfile"
 
 echo ""
-echo "Wrote $outdir/$tcpdirect_dir.deb"
+echo "Wrote $outdir/$package-debiansource.tgz"
 echo ""
