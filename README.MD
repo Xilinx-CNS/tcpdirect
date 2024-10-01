@@ -22,6 +22,8 @@ make
 ```
 
 ### Packaging
+
+#### SRPM instructions
 Use the [`zf_make_official_srpm`](./scripts/zf_make_official_srpm) script to create an SRPM package:
 
 ```bash
@@ -51,6 +53,26 @@ invocation of `rpmbuild` above:
 
 Where the `${onload}` variable points to an Onload tarball.
 
+
+#### Deb instructions
+
+To install TCPDirect from a DEB:
+
+The DEB package depends on `*onload-user` and `*onload-dev` packages in addition
+to any other dependencies.
+
+```bash
+# 1. Extract debian-source tarball:
+tar -xf tcpdirect_<version>-debiansource.tgz
+# 2. Unpack debian source archive
+dpkg-source -x tcpdirect_<version>-1.dsc
+# 3. Enter newly created tcpdirect directory
+cd tcpdirect-<version>
+# 4. Build debian package
+debuild -i -uc -us
+# 5. Install debian package
+dpkg -i ../tcpdirect_<version>-1_amd64.deb
+```
 ## How to run unit tests
 
 ### Dependencies
