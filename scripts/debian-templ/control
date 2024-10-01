@@ -2,11 +2,11 @@ Source: tcpdirect
 Section: libs
 Priority: optional
 Maintainer: AMD NIC Support <support-nic@amd.com>
-Build-Depends: debhelper (>= 8.0.0), onload-user | enterpriseonload-user | openonload-user | cloudonload-user, onload-dev | enterpriseonload-dev | openonload-dev | cloudonload-dev, build-essential
+Build-Depends: debhelper (>= 8.0.0), onload-user, onload-dev, build-essential
 Standards-Version: 3.9.3
 Homepage: http://www.openonload.org
 
 Package: tcpdirect
 Architecture: amd64
-Depends: onload-user | enterpriseonload-user | openonload-user | cloudonload-user
+Depends: onload-user
 Description: TCPDirect library
