@@ -28,8 +28,10 @@ make_release_package() {
     cp "${script_dir}"/zf_install    "${stage_dir}/scripts"
     cp "${script_dir}"/zf_uninstall  "${stage_dir}/scripts"
     cp "${script_dir}"/zf_debug      "${stage_dir}/scripts"
-    cp "${script_dir}"/tcpdirect_misc/tcpdirect.spec "${stage_dir}/scripts"
 
+    if [ -f "${script_dir}"/tcpdirect_misc/tcpdirect.spec ]; then
+      cp "${script_dir}"/tcpdirect_misc/tcpdirect.spec "${stage_dir}/scripts"
+    fi
 
     # Add documents to tarball
     if [ -d "$doc_dir" ]; then

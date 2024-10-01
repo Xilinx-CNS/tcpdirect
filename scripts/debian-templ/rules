@@ -1,0 +1,28 @@
+#!/usr/bin/make -f
+
+# See debhelper(7) (uncomment to enable).
+# Output every command that modifies files on the build system.
+#export DH_VERBOSE = 1
+
+# dpkg-buildflags sets link time optimisation by default. Because we want to
+# finish before the heat death of the universe, we disable the optimisation for
+# this package.
+export DEB_BUILD_MAINT_OPTIONS=optimize=-lto
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	./scripts/zf_mkdist --name tcpdirect --version #VERSION#
+	tar -xzvf build/tcpdirect-#VERSION#.tgz
+
+override_dh_auto_install:
+	mkdir -p $(CURDIR)/debian/tcpdirect/usr
+	cp ./scripts/zf_install tcpdirect-#VERSION#/scripts
+	./tcpdirect-#VERSION#/scripts/zf_install --dest-dir $(CURDIR)/debian/tcpdirect/usr --packaging
+
+# By default, dh_compresses any files in usr/share/doc that is over 4k. This
+# includes the example source and header files, which prevents easy compilation.
+# Exclude the examples from the compress so that they are still compilable.
+override_dh_compress:
+	dh_compress -Xexamples
