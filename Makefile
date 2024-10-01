@@ -13,8 +13,25 @@ else
     $(error ZF_DEVEL unsupported when building from installed onload)
   endif
   $(info Using installed onload libraries and headers)
+
+ifneq ("$(wildcard /usr/lib64/libcitools1.a)","")
   CITOOLS_LIB := /usr/lib64/libcitools1.a
-  CIUL_LIB    := /usr/lib64/libciul1.a
+else ifneq ("$(wildcard /usr/lib/x86_64-linux-gnu/libcitools1.a)","")
+  CITOOLS_LIB := /usr/lib/x86_64-linux-gnu/libcitools1.a
+else
+  $(warning Could not find libcitools1.a. Have you installed onload development headers?)
+endif
+$(info libcitools1.a found at $(CITOOLS_LIB))
+
+ifneq ("$(wildcard /usr/lib64/libciul1.a)","")
+  CIUL_LIB := /usr/lib64/libciul1.a
+else ifneq ("$(wildcard /usr/lib/x86_64-linux-gnu/libciul1.a)","")
+  CIUL_LIB := /usr/lib/x86_64-linux-gnu/libciul1.a
+else
+  $(warning Could not find libciul1.a. Have you installed onload development headers?)
+endif
+$(info libciul1.a found at $(CIUL_LIB))
+
 endif
 include Makefile-top.inc
 
