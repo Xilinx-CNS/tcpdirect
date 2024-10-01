@@ -98,8 +98,7 @@ build_and_copy_artifacts() {
     fi
 
     build_dir="${zf_tmpdir}"/build
-    rm -rf "${build_dir}"/onload
-    rm -rf "${build_dir}"/gnu*
+    rm -rf "${build_dir}"
     cd "${zf_tmpdir}"
     # shellcheck disable=SC2086
     make ${parallel} ${make_args}
