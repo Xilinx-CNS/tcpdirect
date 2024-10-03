@@ -192,6 +192,7 @@ nm.slack_notify() {
         archiveArtifacts(artifacts: '*.tgz')
         archiveArtifacts(artifacts: '*.md5')
         archiveArtifacts(artifacts: '*.txt')
+        sh 'rm *ReleaseNotes.txt'
         stash name: 'text_files', includes: '*.txt'
         zip_and_archive_files(
           "tcpdirect-${tcpdirect_version_long}-tarball-doxbox.zip",
