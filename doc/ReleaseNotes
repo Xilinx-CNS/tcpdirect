@@ -31,6 +31,17 @@ TCPDirect distributed as source code
   packages are suitable for all supported OSs.
 
 
+New onload-devel package required
+---------------------------------
+
+  Onload now includes a package containing headers required by ef_vi
+  applications like TCPDirect. Installing this package is now required to
+  install TCPDirect binaries as well as to build TCPDirect applications.
+
+  Headers can also be installed via new '--headers' option in 'onload_install'
+  as of Onload-9.0.0.
+
+
 Installation
 ------------
 
