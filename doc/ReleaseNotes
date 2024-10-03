@@ -9,14 +9,6 @@ TCPDirect-9.0.0
   derives from those supported by Onload.
 
 
-Public Onload/ef_vi control plane API
--------------------------------------
-
-  The Onload control plane in this Onload-9.0.0 is presented via a new
-  public API that can be used by ef_vi applications. As an ef_vi application,
-  TCPDirect now uses this API to query the control plane server.
-
-
 TCPDirect distributed as source code
 ------------------------------------
 
@@ -27,19 +19,27 @@ TCPDirect distributed as source code
   suitable new build and installation workflows for the TCPDirect source
   package.
 
-  There is no longer a 'tarball' distribution type as the RPM and DEB source
-  packages are suitable for all supported OSs.
+  In particular, this means an additional Onload development package
+  is required, which contains the necessary headers for building TCPDirect.
 
 
-New onload-devel package required
----------------------------------
+New onload development package
+------------------------------
 
   Onload now includes a package containing headers required by ef_vi
-  applications like TCPDirect. Installing this package is now required to
-  install TCPDirect binaries as well as to build TCPDirect applications.
+  applications like TCPDirect. Installing this package is required to
+  build TCPDirect and TCPDirect applications.
 
-  Headers can also be installed via new '--headers' option in 'onload_install'
-  as of Onload-9.0.0.
+  Please ensure the openonload-devel RPM or onload-dev DEB is installed
+  after building Onload before attempting to build TCPDirect.
+
+
+Public Onload/ef_vi control plane API
+-------------------------------------
+
+  The Onload control plane in this Onload-9.0.0 is presented via a new
+  public API that can be used by ef_vi applications. As an ef_vi application,
+  TCPDirect now uses this API to query the control plane server.
 
 
 Installation
@@ -47,8 +47,12 @@ Installation
 
   To install TCPDirect from a Source RPM:
 
-    0. The Source RPM depends upon the openonload and openonload-devel packages
-       in addition to any other dependencies.
+    0. The source RPM package depends on the Onload userspace and development
+       packages in addition to any other dependencies on standard system
+       packages:
+
+         - openonload
+         - openonload-devel
 
     1. Build the binary RPM from the source RPM file:
 
@@ -70,8 +74,12 @@ Installation
 
   To install TCPDirect from a DEB:
 
-    0. The DEB package depends on *onload-user and *onload-dev packages in
-       addition to any other dependencies.
+    0. The DEB source package depends on the Onload userspace and development
+       packages in addition to any other dependencies on standard system
+       packages:
+
+         - onload-user
+         - onload-dev
 
     1. Extract debian-source tarball:
 
@@ -92,6 +100,9 @@ Installation
     5. Install debian package
 
          dpkg -i tcpdirect_<version>-1_amd64.deb
+
+  There is no longer a 'tarball' distribution type as the RPM and DEB source
+  packages are suitable for all supported OSs.
 
 
 SPDX-License-Identifier: MIT
