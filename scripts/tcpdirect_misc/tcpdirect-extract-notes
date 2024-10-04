@@ -26,6 +26,12 @@ else
     err "No Changelog file found in Tarball"
 fi
 
+if [ -f "$dir/ReleaseNotes" ]; then
+    try mv "$dir/ReleaseNotes" "$dst/$dir-ReleaseNotes.txt"
+else
+    err "No ReleaseNotes file found in Tarball"
+fi
+
 if [ -f "$dir/LICENSE" ]; then
     try mv "$dir/LICENSE" "$dst/$dir-LICENSE.txt"
 else
