@@ -58,10 +58,10 @@ copy_files_to_tmpdir() {
 
 
 grab_artifacts_from_tmpdir() {
-    tmpdir="${zf_tmpdir}/build/artifacts"
+    artifact_tmpdir="${zf_tmpdir}/build/artifacts"
     local_dir="${top_dir}/build/artifacts"
     mkdir -p "${local_dir}"
-    tar cz -C "${tmpdir}" . | tar zx -C "${local_dir}"
+    tar cz -C "${artifact_tmpdir}" . | tar zx -C "${local_dir}"
 }
 
 make_release_package() {
@@ -198,7 +198,7 @@ if $shim && [ -z "$onload_tarball" ]; then
   usage;
 fi
 
-tmpdir=$(mktemp -d)
+declare -r tmpdir=$(mktemp -d)
 onload_tmpdir="${tmpdir}/onload"
 zf_tmpdir="${tmpdir}/zf"
 trap cleanup EXIT
