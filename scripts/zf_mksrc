@@ -1,0 +1,48 @@
+#! /bin/bash
+
+me=$(basename "$0")
+err()  { echo >&2 "$*"; }
+log()  { err "$me: $*"; }
+fail() { log "$*"; exit 1; }
+try()  { "$@" || fail "FAILED: $*"; }
+
+my_dir=$(cd "$(dirname "$0")" && /bin/pwd)
+top_dir=$(dirname "${my_dir}")
+
+tarball_files_from=(
+versions.yaml
+Makefile
+Makefile.onload
+Makefile-top.inc
+doc
+src
+scripts/debian-templ
+scripts/tcpdirect_misc/tcpdirect-extract-notes
+scripts/zf_debug
+scripts/zf_install
+scripts/zf_make_official_deb
+scripts/zf_make_official_srpm
+scripts/zf_make_tarball
+scripts/zf_mkdist
+scripts/zf_uninstall
+)
+
+version=
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --version)  shift; version="$1";;
+    *)  usage;;
+  esac
+  shift
+done
+
+if [ -z "${version}" ]; then
+    version=$(git rev-parse HEAD)
+fi
+
+zf_prefix="tcpdirect-${version}"
+zf_tarball="${zf_prefix}.tar.gz"
+
+# Create a tarball in tmpdir.
+try tar -cz -C "${top_dir}" --transform "s,^,${zf_prefix}/,S" -f "${zf_tarball}" -- "${tarball_files_from[@]}"

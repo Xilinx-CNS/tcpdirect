@@ -184,6 +184,7 @@ nm.slack_notify() {
         archiveArtifacts(artifacts: '*.tgz')
         archiveArtifacts(artifacts: '*.md5')
         archiveArtifacts(artifacts: '*.txt')
+        sh 'rm *ReleaseNotes.txt'
         stash name: 'text_files', includes: '*.txt'
         zip_and_archive_files(
           "tcpdirect-${tcpdirect_version_long}-tarball-doxbox.zip",
@@ -191,12 +192,7 @@ nm.slack_notify() {
           '*.md5',
           '*.txt'
         )
-        stash(
-          name: "tcpdirect-release-tarball",
-          includes: "tcpdirect-${tcpdirect_version_long}.tgz",
-        )
       }
-      stash(name: "tcpdirect-build-artifacts", includes: "tcpdirect/build/artifacts/**")
     }
   }
 
@@ -220,25 +216,26 @@ nm.slack_notify() {
           sh "rm -rf ${outdir}"
         }
       },
-      "publish release deb": {
+      "publish deb": {
         node("deb") {
-          stage('stage installation') {
+          stage('Create source tarball') {
             deleteDir()
-            unstash('tcpdirect-release-tarball')
-            sh "tar xvzf tcpdirect-${tcpdirect_version_long}.tgz"
-            sh "tcpdirect-${tcpdirect_version_long}/scripts/zf_install --packaging --dest-dir staging/usr"
-            stash(name: "tcpdirect-staged-installation", includes: "staging/**")
-          }
-          stage('build deb') {
-            deleteDir()
-            unstash('tcpdirect-staged-installation')
             unstash('tcpdirect-src')
-            sh "tcpdirect/scripts/zf_make_official_deb --version ${tcpdirect_version_long} staging"
-            archiveArtifacts allowEmptyArchive: true, artifacts: '*.deb', followSymlinks: false
+            sh "tcpdirect/scripts/zf_mksrc --version ${tcpdirect_version_long}"
+            stash name: 'tcpdirect-tar', includes: "tcpdirect-${tcpdirect_version_long}.tar.gz"
+            sh "mv tcpdirect-${tcpdirect_version_long}.tar.gz tcpdirect-source-${tcpdirect_version_long}.tar.gz"
+            archiveArtifacts allowEmptyArchive: true, artifacts: "tcpdirect-source-${tcpdirect_version_long}.tar.gz", followSymlinks: false
+          }
+          stage('create deb') {
+            deleteDir()
+            unstash('tcpdirect-tar')
+            unstash('tcpdirect-src')
+            sh "tcpdirect/scripts/zf_make_official_deb --version ${tcpdirect_version_long} tcpdirect-${tcpdirect_version_long}.tar.gz"
+            archiveArtifacts allowEmptyArchive: true, artifacts: '*debiansource.tgz', followSymlinks: false
             unstash('text_files')
             zip_and_archive_files(
               "tcpdirect-${tcpdirect_version_long}-deb-doxbox.zip",
-              '*.deb',
+              '*debiansource.tgz',
               '*.txt'
             )
           }

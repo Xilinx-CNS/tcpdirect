@@ -98,8 +98,14 @@ build_and_copy_artifacts() {
     fi
 
     build_dir="${zf_tmpdir}"/build
-    rm -rf "${build_dir}"/onload
-    rm -rf "${build_dir}"/gnu*
+    # Clean the build directory, but ensure we don't delete the artifacts from a
+    # previous build stage.
+    find "${build_dir}" -maxdepth 1 -mindepth 1 -type d |
+      while read -r d; do
+        if [ "$(realpath "${d}")" != "$(realpath "${artifact_dir}")" ]; then
+          rm -rf "${d}";
+        fi
+      done
     cd "${zf_tmpdir}"
     # shellcheck disable=SC2086
     make ${parallel} ${make_args}
