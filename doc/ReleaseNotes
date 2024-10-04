@@ -51,8 +51,8 @@ Installation
        packages in addition to any other dependencies on standard system
        packages:
 
-         - openonload
-         - openonload-devel
+         - onload
+         - onload-devel
 
     1. Build the binary RPM from the source RPM file:
 
