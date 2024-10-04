@@ -4,7 +4,7 @@
 ---
 products:
   TCPDirect:
-    version: 8.1.3
+    version: 8.1.4
   Onload:
     version: 'onload-8.1'
     repo_source: 'git@github.com:Xilinx-CNS/onload_internal.git'
