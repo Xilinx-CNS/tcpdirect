@@ -4,7 +4,7 @@
 ---
 products:
   TCPDirect:
-    version: 9.0.0
+    version: 9.0.1
   Onload:
     version: 'onload-9.0'
     repo_source: 'git@github.com:Xilinx-CNS/onload_internal.git'
