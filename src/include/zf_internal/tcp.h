@@ -281,9 +281,17 @@ tcp_rx_common_tail(zf_stack* st, zf_tcp* tcp)
   if( tcp->pcb.flags & TF_ACK_DELAY )
     zf_tcp_timers_timer_start(tcp, ZF_TCP_TIMER_DACK,
                               zf_tcp_timers_dack_timeout(tcp));
+  // TODO: keepalive. 
+  // TODO: implement the timer swap between the initial time and interval.
+  // TODO: it should be done within the keepalive_timeout function
+
+  // TODO: Check if this is in the right place, as there might be a corner case 
+  // TODO: where we're processing packets and KA must be deactivated.
+
+  zf_tcp_timers_timer_start(tcp, ZF_TCP_TIMER_KEEPALIVE, 
+                            zf_tcp_timers_keepalive_time_timeout(st));
   return event_occurred;
 }
-
 
 extern bool tcp_is_orphan(zf_tcp* tcp);
 

@@ -12,6 +12,9 @@ typedef uint8_t zf_stack_flag;
 struct zf_stack_config {
   int tcp_timewait_ticks;
   int tcp_finwait_ticks;
+  int tcp_keepalive_time_ticks;
+  int tcp_keepalive_intvl_ticks;
+  int tcp_keepalive_probes;
   int ctpio_threshold;
 };
 
