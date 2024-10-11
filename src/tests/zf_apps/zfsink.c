@@ -34,6 +34,7 @@ struct resources {
 
 static bool cfg_quiet = false;
 static bool cfg_rx_timestamping = false;
+static bool cfg_intf_stats = false;
 static struct resources res;
 
 /* Mutex to protect printing from different threads */
@@ -52,6 +53,7 @@ static void usage_msg(FILE* f)
   fprintf(f, "  -r       Enable rx timestamping\n");
   fprintf(f, "  -q       Quiet -- do not emit progress messages\n");
   fprintf(f, "  -p       Print zf attributes after stack startup\n");
+  fprintf(f, "  -s       Print interfaces drop stats\n");
 }
 
 
@@ -60,18 +62,6 @@ static void usage_err(void)
   usage_msg(stderr);
   exit(1);
 }
-
-
-static void vlog(const char* fmt, ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  pthread_mutex_lock(&printf_mutex);
-  vprintf(fmt, args);
-  pthread_mutex_unlock(&printf_mutex);
-  va_end(args);
-}
-
 
 static void try_recv(struct zfur* ur)
 {
@@ -98,10 +88,12 @@ static void try_recv(struct zfur* ur)
       struct timespec ts;
       int rc = zfur_pkt_get_timestamp(ur, &rd.msg, &ts, 0, &flags);
 
+      pthread_mutex_lock(&printf_mutex);
       if( rc == 0 )
-        vlog("Hardware timestamp: %lld.%.9ld\n", ts.tv_sec, ts.tv_nsec);
+        printf("Hardware timestamp: %ld.%.9ld\n", ts.tv_sec, ts.tv_nsec);
       else
-        vlog("Error retrieving timestamp! Return code: %d\n", rc);
+        printf("Error retrieving timestamp! Return code: %d\n", rc);
+      pthread_mutex_unlock(&printf_mutex);
     }
 
     zfur_zc_recv_done(ur, &rd.msg);
@@ -243,14 +235,72 @@ void print_attrs(struct zf_attr* attr)
 }
 
 
-static void monitor()
+static void zf_stats_header_print(struct zf_stack* stack,
+                                  zf_interface_stats* stats_collection)
+{
+  int i;
+
+  if( stats_collection->num_intfs > 1 )
+    printf("\n#");
+
+  /* only display names for the first NIC and assume others are the same */
+  for( i = 0; i < stats_collection->layout[0]->evsl_fields_num; ++i )
+    printf("  %10s", stats_collection->layout[0]->evsl_fields[i].evsfl_name);
+}
+
+
+static void zf_stats_print(struct zf_stack* stack, uint8_t* stats_data,
+                           zf_interface_stats* stats_collection)
+{
+  int i, n, n_pad;
+  uint8_t* cur_data = stats_data;
+  const zf_stats_layout * layout;
+
+  for( n = 0; n < stats_collection->num_intfs; n++ ) {
+    if( stats_collection->num_intfs > 1 )
+      printf("\n ");
+
+    layout = stats_collection->layout[n];
+    for( i = 0; i < layout->evsl_fields_num; ++i ) {
+      const zf_stats_field_layout* f = &layout->evsl_fields[i];
+      n_pad = strlen(f->evsfl_name);
+      if( n_pad < 10 )
+        n_pad = 10;
+      switch( f->evsfl_size ) {
+        case sizeof(uint32_t):
+          printf("  %*d", n_pad, *(uint32_t*)(cur_data + f->evsfl_offset));
+          break;
+        default:
+          printf("  %*s", n_pad, ".");
+      };
+    }
+    cur_data += layout->evsl_data_size;
+  }
+}
+
+
+static void monitor(struct zf_stack* stack)
 {
   uint64_t now_bytes, prev_bytes;
   struct timeval start, end;
   uint64_t prev_pkts, now_pkts;
   int ms, pkt_rate, mbps;
 
-  vlog("#%9s %16s %16s", "pkt-rate", "bandwidth(Mbps)", "total-pkts\n");
+  zf_interface_stats* stats_collection;
+  uint8_t* stats_data = NULL;
+
+  pthread_mutex_lock(&printf_mutex);
+  printf("#%9s %16s %16s", "pkt-rate", "bandwidth(Mbps)", "total-pkts");
+
+  if( cfg_intf_stats ) {
+    ZF_TEST(zf_stats_alloc_interface_stats(stack, &stats_collection) == 0);
+    zf_stats_header_print(stack, stats_collection);
+
+    ZF_TEST((stats_data = malloc(stats_collection->total_data_size)) != NULL);
+  }
+
+  printf("\n");
+  pthread_mutex_unlock(&printf_mutex);
 
   prev_pkts = res.n_rx_pkts;
   prev_bytes = res.n_rx_bytes;
@@ -265,18 +315,35 @@ static void monitor()
     ms += (end.tv_usec - start.tv_usec) / 1000;
     pkt_rate = (int) ((now_pkts - prev_pkts) * 1000 / ms);
     mbps = (int) ((now_bytes - prev_bytes) * 8 / 1000 / ms);
-    vlog("%10d %16d %16"PRIu64"\n", pkt_rate, mbps, now_pkts);
+    
+    if( cfg_intf_stats )
+      zf_stats_query(stack, stats_data, stats_collection, 1);
+
+    pthread_mutex_lock(&printf_mutex);
+    printf("%10d %16d %16"PRIu64, pkt_rate, mbps, now_pkts);
+
+    if( cfg_intf_stats )
+      zf_stats_print(stack, stats_data, stats_collection);
+
+    printf("\n");
     fflush(stdout);
+    pthread_mutex_unlock(&printf_mutex);
+    
     prev_pkts = now_pkts;
     prev_bytes = now_bytes;
     start = end;
+  }
+
+  if( cfg_intf_stats ) {
+    free(stats_data);
+    zf_stats_free_interface_stats(stats_collection);
   }
 }
 
 
 static void* monitor_fn(void* arg)
 {
-  monitor();
+  monitor( (struct zf_stack*)arg );
   return NULL;
 }
 
@@ -289,7 +356,7 @@ int main(int argc, char* argv[])
   bool cfg_print_attrs = false;
   
   int c;
-  while( (c = getopt(argc, argv, "hmrwqp")) != -1 )
+  while( (c = getopt(argc, argv, "hmrwqps")) != -1 )
     switch( c ) {
     case 'h':
       usage_msg(stdout);
@@ -308,6 +375,9 @@ int main(int argc, char* argv[])
       break;
     case 'p':
       cfg_print_attrs = true;
+      break;
+    case 's':
+      cfg_intf_stats = true;
       break;
     case '?':
       exit(1);
@@ -374,7 +444,7 @@ int main(int argc, char* argv[])
   res.n_rx_pkts = 0;
 
   if( ! cfg_quiet )
-    ZF_TRY(pthread_create(&thread_id, NULL, monitor_fn, NULL) == 0);
+    ZF_TRY(pthread_create(&thread_id, NULL, monitor_fn, stack) == 0);
 
   if( cfg_waitable_fd )
     ev_loop_waitable_fd(stack, muxer);
