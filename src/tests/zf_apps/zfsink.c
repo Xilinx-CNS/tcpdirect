@@ -34,6 +34,7 @@ struct resources {
 
 static bool cfg_quiet = false;
 static bool cfg_rx_timestamping = false;
+static bool cfg_intf_stats = false;
 static struct resources res;
 
 /* Mutex to protect printing from different threads */
@@ -52,6 +53,7 @@ static void usage_msg(FILE* f)
   fprintf(f, "  -r       Enable rx timestamping\n");
   fprintf(f, "  -q       Quiet -- do not emit progress messages\n");
   fprintf(f, "  -p       Print zf attributes after stack startup\n");
+  fprintf(f, "  -s       Print interfaces drop stats\n");
 }
 
 
@@ -243,14 +245,80 @@ void print_attrs(struct zf_attr* attr)
 }
 
 
-static void monitor()
+static int zf_stats_header_print(struct zf_stack* stack, int layout_sz,
+                                  const zf_stats_layout** zf_stats_layout)
+{
+  int i, nic_cnt;
+  nic_cnt = zf_stats_query_layout(stack, zf_stats_layout, layout_sz);
+
+  /* only display names for the first NIC and assume others are the same */
+  if( nic_cnt > 1 ) {
+    printf("\n#");
+  }
+  for( i = 0; i < zf_stats_layout[0]->evsl_fields_num; ++i )
+    printf("  %10s", zf_stats_layout[0]->evsl_fields[i].evsfl_name);
+
+  return nic_cnt;
+}
+
+
+static void zf_stats_print(struct zf_stack* stack, int reset_stats,
+                           uint8_t* stats_data, int nic_cnt,
+                           const zf_stats_layout** zf_stats_layout)
+{
+  int i, n, n_pad;
+  uint8_t* cur_data = stats_data;
+
+  zf_stats_query(stack, stats_data, zf_stats_layout, nic_cnt, reset_stats);
+
+  for( n = 0; n < nic_cnt; n++ ) {
+    if( nic_cnt > 1 )
+      printf("\n");
+    for( i = 0; i < zf_stats_layout[n]->evsl_fields_num; ++i ) {
+      const zf_stats_field_layout* f = &zf_stats_layout[n]->evsl_fields[i];
+      n_pad = strlen(f->evsfl_name);
+      if( n_pad < 10 )
+        n_pad = 10;
+      switch( f->evsfl_size ) {
+        case sizeof(uint32_t):
+          printf("  %*d", n_pad, *(uint32_t*)(cur_data + f->evsfl_offset));
+          break;
+        default:
+          printf("  %*s", n_pad, ".");
+      };
+    }
+    cur_data += zf_stats_layout[n]->evsl_data_size;
+  }
+}
+
+
+static void monitor(struct zf_stack* stack)
 {
   uint64_t now_bytes, prev_bytes;
   struct timeval start, end;
   uint64_t prev_pkts, now_pkts;
   int ms, pkt_rate, mbps;
 
-  vlog("#%9s %16s %16s", "pkt-rate", "bandwidth(Mbps)", "total-pkts\n");
+  const zf_stats_layout** zf_stats_layout;
+  uint8_t* stats_data = NULL;
+  int i, nic_cnt = 0, malloc_sz = 0;
+
+  nic_cnt = zf_stack_num_intfs(stack);
+  zf_stats_layout = malloc(nic_cnt * sizeof(struct zf_stats_layout *));
+  ZF_TEST(zf_stats_layout != NULL);
+
+  pthread_mutex_lock(&printf_mutex);
+  printf("#%9s %16s %16s", "pkt-rate", "bandwidth(Mbps)", "total-pkts");
+
+  if( cfg_intf_stats ) {
+    nic_cnt = zf_stats_header_print(stack, nic_cnt, zf_stats_layout);
+    for( i = 0; i < nic_cnt; i++ )
+      malloc_sz += zf_stats_layout[i]->evsl_data_size;
+    ZF_TEST((stats_data = malloc(malloc_sz)) != NULL);
+  }
+
+  printf("\n");
+  pthread_mutex_unlock(&printf_mutex);
 
   prev_pkts = res.n_rx_pkts;
   prev_bytes = res.n_rx_bytes;
@@ -265,8 +333,17 @@ static void monitor()
     ms += (end.tv_usec - start.tv_usec) / 1000;
     pkt_rate = (int) ((now_pkts - prev_pkts) * 1000 / ms);
     mbps = (int) ((now_bytes - prev_bytes) * 8 / 1000 / ms);
-    vlog("%10d %16d %16"PRIu64"\n", pkt_rate, mbps, now_pkts);
+    
+    pthread_mutex_lock(&printf_mutex);
+    printf("%10d %16d %16"PRIu64, pkt_rate, mbps, now_pkts);
+
+    if( cfg_intf_stats )
+      zf_stats_print(stack, 1, stats_data, nic_cnt, zf_stats_layout);
+
+    printf("\n");
     fflush(stdout);
+    pthread_mutex_unlock(&printf_mutex);
+    
     prev_pkts = now_pkts;
     prev_bytes = now_bytes;
     start = end;
@@ -276,7 +353,7 @@ static void monitor()
 
 static void* monitor_fn(void* arg)
 {
-  monitor();
+  monitor( (struct zf_stack*)arg );
   return NULL;
 }
 
@@ -289,7 +366,7 @@ int main(int argc, char* argv[])
   bool cfg_print_attrs = false;
   
   int c;
-  while( (c = getopt(argc, argv, "hmrwqp")) != -1 )
+  while( (c = getopt(argc, argv, "hmrwqps")) != -1 )
     switch( c ) {
     case 'h':
       usage_msg(stdout);
@@ -308,6 +385,9 @@ int main(int argc, char* argv[])
       break;
     case 'p':
       cfg_print_attrs = true;
+      break;
+    case 's':
+      cfg_intf_stats = true;
       break;
     case '?':
       exit(1);
@@ -374,7 +454,7 @@ int main(int argc, char* argv[])
   res.n_rx_pkts = 0;
 
   if( ! cfg_quiet )
-    ZF_TRY(pthread_create(&thread_id, NULL, monitor_fn, NULL) == 0);
+    ZF_TRY(pthread_create(&thread_id, NULL, monitor_fn, stack) == 0);
 
   if( cfg_waitable_fd )
     ev_loop_waitable_fd(stack, muxer);
