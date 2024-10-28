@@ -29,6 +29,7 @@ uint64_t zf_log_level = ZF_LCL_ALL_ERR;
 int zf_log_format;
 
 static FILE* zf_log_file;
+char zf_log_file_name[ZF_LOG_FILE_NAME_SIZE] = "/dev/stderr";
 
 static uint64_t zf_log_level_get()
 {
@@ -135,14 +136,42 @@ void zf_log(struct zf_stack* st, const char* fmt, ...)
   va_end(va);
 }
 
+static int zf_log_set_file_name(const char *file)
+{
+  if( strnlen(file, ZF_LOG_FILE_NAME_SIZE) > ZF_LOG_FILE_NAME_SIZE-1 ) {
+    zf_log_stack_err(NO_STACK, "%s: File name is longer than %i characters: %s\n",
+                     __func__, ZF_LOG_FILE_NAME_SIZE-1, strerror(-EINVAL));
+    return -EINVAL;
+  }
+
+  strncpy(zf_log_file_name, file, sizeof(zf_log_file_name));
+
+  return 0;
+}
+
 int zf_log_redirect(const char* file)
 {
-  FILE* f = fopen(file, "a");
-  if( ! f )
+  char* previous_file_name = strdup(zf_log_file_name);
+  if( !previous_file_name )
     return -errno;
+
+  int rc = zf_log_set_file_name(file);
+  if( rc < 0 ) {
+    free(previous_file_name);
+    return rc;
+  }
+
+  FILE* f = fopen(zf_log_file_name, "a");
+  if( !f ) {
+    zf_log_set_file_name(previous_file_name);
+    return -errno;
+  }
 
   zf_log_stderr(); /* close any existing file */ 
   zf_log_file = f;
+  
+  free(previous_file_name);
+  
   return fileno(f);
 }
 
@@ -159,6 +188,7 @@ int zf_log_replace_stderr(const char* file)
   if( fd < 0 )
     return fd;
   int rc = dup2(fd, STDERR_FILENO);
+  zf_log_set_file_name(file);
   close(fd);
   return rc;
 }
