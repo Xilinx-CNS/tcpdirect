@@ -1,3 +1,14 @@
+tcpdirect-8.1.4
+---------------
+
+See corresponding onload-8.1.4 changelog for changes in OS support.
+
+Changes:
+
+ON-15038: write out attributes into zf_stackdump
+ON-15895: handle TX completions for in-flight retransmitted packets
+
+
 tcpdirect-8.1.3
 ---------------
 
