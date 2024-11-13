@@ -487,3 +487,9 @@ zf_stack_query_feature(struct zf_stack* stack, enum zf_stack_feature feature)
   return -ENOENT;
 
 }
+
+int
+zf_stack_num_intfs(struct zf_stack* stack)
+{
+  return stack->nics_n;
+}
