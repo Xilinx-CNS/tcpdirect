@@ -52,9 +52,7 @@ $ sudo sysctl vm.nr_hugepages=4096
 
 ## Footnotes
 
-```
-# SPDX-License-Identifier: MIT
-# SPDX-FileCopyrightText: (c) 2020-2024 Advanced Micro Devices, Inc.
-#
-# Internal documentation
+```yaml
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: Copyright (C) 2020-2024 Advanced Micro Devices, Inc.
 ```
