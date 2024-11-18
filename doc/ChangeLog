@@ -1,8 +1,10 @@
 tcpdirect-9.0.1
 ---------------
 
-Placeholder for hypothetical update to tcpdirect-9.0.0.
+See corresponding Onload changelog for changes in OS support.
 
+ON-15038: add 'zf_stackdump attr' option to report stack attributes
+ON-15895: ensure Tx timestamps handled correctly for retransmitted packets
 
 
 tcpdirect-9.0.0.21
