@@ -5,8 +5,8 @@ See corresponding onload-8.1.4 changelog for changes in OS support.
 
 Changes:
 
-ON-15038: write out attributes into zf_stackdump
-ON-15895: handle TX completions for in-flight retransmitted packets
+ON-15038: add 'zf_stackdump attr' option to report stack attributes
+ON-15895: ensure Tx timestamps handled correctly for retransmitted packets
 
 
 tcpdirect-8.1.3
