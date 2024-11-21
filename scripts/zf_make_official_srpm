@@ -76,7 +76,7 @@ trap cleanup EXIT
 
 # Create a tarball in tmpdir.
 # shellcheck disable=SC2086
-try tar -c -C "${top_dir}" --transform "s,^,${zf_prefix}/,S" -f "${zf_tarball}" -- ${tarball_files_from}
+try tar -c -C "${top_dir}" --owner=root --group=root --transform "s,^,${zf_prefix}/,S" -f "${zf_tarball}" -- ${tarball_files_from}
 
 # Patch and put the SPEC file in tmpdir.
 # shellcheck disable=SC2046
@@ -87,7 +87,7 @@ try sed \
   > "${tmpdir}/${zf_prefix}/${zf_spec}"
 
 # Add the patched SPEC file in the tarball.
-try tar -v -C "${tmpdir}" --append -f "${zf_tarball}" -- "${zf_prefix}/${zf_spec}"
+try tar -v -C "${tmpdir}" --owner=root --group=root --append -f "${zf_tarball}" -- "${zf_prefix}/${zf_spec}"
 
 # Compress the tarball.
 try gzip -v "${zf_tarball}"
