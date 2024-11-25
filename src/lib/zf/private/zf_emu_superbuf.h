@@ -36,6 +36,7 @@ struct hlist_head {};
 typedef uint32_t u32;
 #define atomic_t ci_atomic_t
 #define schedule_work(a)
+typedef uint64_t resource_size_t;
 
 
 struct xlnx_efct_rxq_params {
