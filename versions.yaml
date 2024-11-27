@@ -8,7 +8,7 @@ products:
   Onload:
     version: 'onload-9.0'
     repo_source: 'git@github.com:Xilinx-CNS/onload_internal.git'
-    public_tree_ish: 'master'
+    public_tree_ish: 'v9_0'
   Packetdrill:
     version: 'tcpdirect-8.1'
     repo_source: 'git@github.com:Xilinx-CNS/packetdrill-tcpdirect.git'
