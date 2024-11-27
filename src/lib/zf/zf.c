@@ -74,7 +74,7 @@ int zf_init(void)
     goto fail;
 
   if( ! zf_state.efcp_so_handle ) {
-    zf_state.efcp_so_handle = dlopen("libefcp.so", RTLD_NOW);
+    zf_state.efcp_so_handle = dlopen("libefcp.so.1", RTLD_NOW);
     if( ! zf_state.efcp_so_handle ) {
       zf_log_stack_err(NO_STACK, "%s: Failed to open ef_vi Control Plane: %s\n",
                       __func__, dlerror());
