@@ -170,6 +170,7 @@ static void test(struct zf_stack* stack, struct zf_attr* attr,
 
 
 #define ITERS 50
+#define NUM_LOG_FILE_TESTS 6
 
 int main(void)
 {
@@ -181,7 +182,7 @@ int main(void)
 
   char non_existent_dir[] = "/path/to/non-existent-dir";
 
-  plan(TESTS_PER_ITER * ITERS);
+  plan(TESTS_PER_ITER * ITERS + NUM_LOG_FILE_TESTS);
 
   int rc = zf_init();
   if( rc != 0 )
