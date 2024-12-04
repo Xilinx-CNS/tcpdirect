@@ -62,9 +62,11 @@ enum zf_log_comp {
 _Static_assert(ZF_LC_NUM_COMPONENTS * ZF_LL_NUM_LEVELS <= 64,
                "64-bit mask is not large enough for all components and levels");
 
+#define ZF_LOG_FILE_NAME_SIZE 256
 
 extern uint64_t zf_log_level;
 extern int zf_log_format;
+extern char zf_log_file_name[ZF_LOG_FILE_NAME_SIZE];
 
 struct zf_stack;
 static constexpr zf_stack* NO_STACK = NULL;

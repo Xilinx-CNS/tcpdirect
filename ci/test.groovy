@@ -205,7 +205,7 @@ nm.slack_notify() {
           String workspace = pwd()
           String outdir = "${workspace}/rpmbuild"
           sh(script: "mkdir -p ${outdir}")
-          sh "tcpdirect/scripts/zf_make_official_srpm --version ${tcpdirect_version_long} --outdir ${outdir}"
+          sh "fakeroot tcpdirect/scripts/zf_make_official_srpm --version ${tcpdirect_version_long} --outdir ${outdir}"
           archiveArtifacts allowEmptyArchive: true, artifacts: 'rpmbuild/SRPMS/*.src.rpm', followSymlinks: false
           unstash('text_files')
           zip_and_archive_files(

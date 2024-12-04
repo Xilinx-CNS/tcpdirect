@@ -5,6 +5,7 @@ See corresponding Onload changelog for changes in OS support.
 
 ON-15038: add 'zf_stackdump attr' option to report stack attributes
 ON-15895: ensure Tx timestamps handled correctly for retransmitted packets
+ON-16211: open control plane shared object with versioned name
 
 
 tcpdirect-9.0.0.21
