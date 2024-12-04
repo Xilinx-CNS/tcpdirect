@@ -167,5 +167,81 @@ enum zf_stack_feature {
 */
 ZF_LIBENTRY int zf_stack_query_feature(struct zf_stack* stack, enum zf_stack_feature feature);
 
+/*! \brief Layout for a field of statistics */
+typedef struct {
+  /** Name of statistics field */
+  char* evsfl_name;
+  /** Offset of statistics file, in bytes */
+  int   evsfl_offset;
+  /** Size of statistics field, in bytes */
+  int   evsfl_size;
+} zf_stats_field_layout;
+
+/*! \brief Layout for statistics */
+typedef struct {
+  /** Size of data for statistics */
+  int                      evsl_data_size;
+  /** Number of fields of statistics */
+  int                      evsl_fields_num;
+  /** Array of fields of statistics */
+  zf_stats_field_layout    evsl_fields[];
+} zf_stats_layout;
+
+/*! \brief  */
+typedef struct {
+  /** Number of underlying interfaces present in stack */
+  int               num_intfs;
+  /** Array of layouts, one per interface */
+  zf_stats_layout** layout;
+} zf_stats_collection;
+
+/*! \brief Allocate and retrieve layout for available statistics
+**
+** \param stack      The stack to query.
+** \param collection Pointer to an zf_stats_collection, that is allocated and
+**                   updated on return with the layout for available
+**                   statistics. This must be released when no longer needed
+**                   using zf_stats_free_query_layout().
+**
+** \return Zero on success or negative error code.
+**
+** Retrieve layout for available statistics.
+*/
+ZF_LIBENTRY int zf_stats_alloc_query_layout(struct zf_stack* stack,
+                                            zf_stats_collection** collection);
+
+/*! \brief Release the layout allocated by zf_stats_alloc_query_layout().
+**
+** \param collection Pointer to an zf_stats_collection that was allocated using
+**                   zf_stats_alloc_query_layout().
+*/
+ZF_LIBENTRY void zf_stats_free_query_layout(zf_stats_collection* collection);
+
+/*! \brief Retrieve a set of statistic values
+**
+** \param stack      The stack to query.
+** \param data       Pointer to a buffer, into which the statistics are
+**                   retrieved.
+**                   The size of this buffer must be equal to the sum of all
+**                   zfsl_data_size fields of the layout description, that can be
+**                   fetched using zf_stats_query_layout().
+** \param collection Pointer to a zf_stats_collection, that was generated for this
+**                   stack by zf_stats_query_layout.
+** \param do_reset   True to reset the statistics after retrieving them.
+**
+** \return zero or a negative error code.
+**
+** Retrieve a set of statistic values.
+**
+** If do_reset is true, the statistics are reset after reading.
+**
+** \note This requires full feature firmware. If used with low-latency
+** firmware, no error is given, and the statistics are invalid (typically
+** all zeroes).
+*/
+ZF_LIBENTRY int zf_stats_query(struct zf_stack* stack, void* data,
+                               zf_stats_collection* collection,
+                               int do_reset);
+
 #endif /* __ZF_STACK_H__ */
 /** @} */

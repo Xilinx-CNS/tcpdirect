@@ -4,7 +4,7 @@
 PUBLIC_LIB_SRCS := zf.c log.c attr.c stack.c pool.c udp_rx.c rx.c udp_tx.c \
 	    muxer.c tcp.c tcp_in.c tcp_out.c tcp_core.c rx_table.c zf_alts.c \
 	    lazy_alloc.c x86.c timers.c cplane.c zf_tcp.c zf_stackdump.c \
-	    dshm.c zf_alt_buffer_model.c zf_ds.c bond.c tx_warm.c
+	    dshm.c zf_alt_buffer_model.c zf_ds.c bond.c tx_warm.c zf_stats.c
 
 # Source files that are not distributed, living in private/.
 PRIVATE_LIB_SRCS := stack_fast.c stack_alloc.c tcp_fast.c reactor.c
