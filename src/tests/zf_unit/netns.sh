@@ -23,6 +23,26 @@ shift
 
 rm -f /dev/shm/zf_emu_*
 
+name_in_list()
+{
+  name=$1
+  list=$2
+  if [ "$(echo "$list" | sed -e "s/ /\n/g" | grep "$name")" = "$name" ]; then
+    return 0;
+  else
+    return 1;
+  fi
+}
+
+testapp_name=$(basename $1)
+if [ "${ZF_RUN_SLOW_TESTS:-1}" = "0" ] && (name_in_list "$testapp_name" "$ZF_SLOW_TESTS"); then
+  echo "1..0 # SKIP not running $testapp_name as it is considered slow. Set ZF_RUN_SLOW_TESTS=1 to run it."
+  exit 0
+elif [ "${ZF_RUN_UNSTABLE_TESTS:-0}" = "0" ] && (name_in_list "$testapp_name" "$ZF_UNSTABLE_TESTS"); then
+  echo "1..0 # SKIP not running $testapp_name as it is considered unstable. Set ZF_RUN_UNSTABLE_TESTS=1 to run it."
+  exit 0
+fi
+
 output="$(timeout ${TEST_TIME_OUT:-120} $@)"
 rc="$?"
 echo "$output"
