@@ -12,7 +12,6 @@ UT_LOOP := zftest zfinit zfudprx zf_superbuf_reuse zftcprx zftcpcopyrx \
 UT_LOOP2 := zftest zfinit zfudprx zf_superbuf_reuse zftcprx zftcpcopyrx \
             zftcptx zfmulticast zftcp_muxer \
             zfds efrxtimestamping zftcprx_on14495
-UT_LOOP_JENKINS := zftimestamping
 UT_MISC := zfpool zfmuxer zfrxtable zfzockbuf \
           zfmultizock zftimers zflisten zfbackingsock zfzockfree \
           zfquiesce_waittw zfquiesce_nowaittw zfstackfree \
@@ -46,8 +45,7 @@ UT_ALL := $(sort \
   $(UT_B2B) \
   $(UT_B2B_SB) \
   $(UT_ALTS) \
-  $(UT_OTHER) \
-  $(UT_LOOP_JENKINS))
+  $(UT_OTHER))
 
 
 UT_OBJS := $(UT_ALL:%=$(OBJ_CURRENT)/%.o)
@@ -117,7 +115,7 @@ target_variants_ = $(1) $(foreach v, $(variants), $(1)_$v)
 target_variants = $(foreach t,$(1),$(call target_variants_,$(t)))
 target_explode = $(call target_variants,$(1)) $(call target_variants,$(2:%=run_%))
 
-UT_NONSCRIPT_LISTS := testloop testloop2  testjenkins testmisc testdelegated testb2b testb2bsb testalts testrxx3
+UT_NONSCRIPT_LISTS := testloop testloop2 testmisc testdelegated testb2b testb2bsb testalts testrxx3
 UT_SCRIPT_LISTS := testscript testpacketdrill
 UT_ALL_LISTS = $(UT_NONSCRIPT_LISTS) $(UT_SCRIPT_LISTS)
 
@@ -133,14 +131,12 @@ UT_ALL_NONSCRIPT_TARGETS := $(UT_ALL_LOOP_TARGETS) $(UT_ALL_MISC_TARGETS) \
 		  $(UT_ALL_B2B_SB_TARGETS)
 UT_ALL_SCRIPT_TARGETS := $(call target_explode,testscript,$(UT_SCRIPTS)) \
                          $(call target_variants,testpacketdrill,$(UT_SCRIPTS))
-UT_ALL_JENKINS_LOOP_TARGETS := $(call target_explode,testjenkins,$(UT_LOOP_JENKINS))
 UT_ALL_TARGETS := $(UT_ALL_NONSCRIPT_TARGETS) \
                   $(UT_ALL_SCRIPT_TARGETS)
 
 
 # Associate targets of each list with their base configuration
 $(UT_ALL_LOOP_TARGETS) : ATTR_LIST += $(TEST_LOOP_ZF_ATTR)
-$(UT_ALL_JENKINS_LOOP_TARGETS) : ATTR_LIST += $(TEST_LOOP_ZF_ATTR)
 $(UT_ALL_MISC_TARGETS) : ATTR_LIST += $(TEST_LOOP_ZF_ATTR)
 # zfdelegated needs the send queue to be smaller than the TCP window, so that
 # send space is the limiting factor. Because the send queue is a fixed number
@@ -186,7 +182,6 @@ TEST_TIME_OUT=120
 
 $(call target_variants,testloop): $(UT_LOOP:%=$(UT_BINDIR)/%)
 $(call target_variants,testloop2): $(UT_LOOP2:%=$(UT_BINDIR)/%)
-$(call target_variants,testjenkins): $(UT_LOOP_JENKINS:%=$(UT_BINDIR)/%)
 $(call target_variants,testmisc): $(UT_MISC:%=$(UT_BINDIR)/%)
 $(call target_variants,testdelegated): $(UT_DELEGATED:%=$(UT_BINDIR)/%)
 $(call target_variants,testb2bsb): $(UT_B2B_SB:%=$(UT_BINDIR)/%)
@@ -249,12 +244,9 @@ test: testloop \
       testloop_vlan testloop_txvi \
       testb2bsb testmisc \
       testdelegated_smallmtu \
-      testb2b testalts testalts_vlan testalts_txvi testpacketdrill
-
-test_jenkins: testjenkins \
-              testscript_x3 \
-              testscript
-
+      testb2b testalts testalts_vlan \
+      testalts_txvi testpacketdrill \
+      testscript_x3 testscript
 
 .PHONY: zf_unit test
 zf_unit: $(UT_BINS)
