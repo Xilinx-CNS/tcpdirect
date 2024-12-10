@@ -28,6 +28,14 @@ UT_ALTS := zfalternatives
 UT_OTHER := zftcppingpong2
 UT_SCRIPTS := zfudppingpong.sh zf_tcp_sanity.sh packetdrill.sh zfsend.sh zfudpttl.sh
 
+# List of tests to skip unless ZF_RUN_SLOW_TESTS=1 (defaults to 1)
+# NOTE: `zfovl` is not actually slow, but rather unstable on slow machines.
+UT_SLOW := zf_superbuf_fallback zf_superbuf_stack_destroy zf_superbuf_locality \
+           zf_superbuf_n_sleep zf_superbuf_sleepy_stacks zftcptimeouts \
+	   zfreactorloop zfstackfree zfrxtable zftcprx zfovl
+
+# List of tests to skip unless ZF_RUN_UNSTABLE_TESTS=1 (defaults to 0)
+UT_UNSTABLE := zftimestamping $(UT_SCRIPTS)
 
 # sort is required to remove duplicates
 UT_ALL := $(sort \
@@ -202,6 +210,10 @@ $(call target_variants,$(UT_NONSCRIPT_LISTS)):
 	@echo "Test target: $@"
 	sudo env $(UT_ENV) $(ENV) $(call buildattrs) \
 		UT_OUTPUT=$(UT_OUTPUT) TEST_TARGET="$@" \
+		ZF_SLOW_TESTS="${UT_SLOW}" \
+		ZF_UNSTABLE_TESTS="${UT_UNSTABLE}" \
+		ZF_RUN_SLOW_TESTS=$${ZF_RUN_SLOW_TESTS:-1} \
+		ZF_RUN_UNSTABLE_TESTS=$${ZF_RUN_UNSTABLE_TESTS:-0} \
 		TEST_TIME_OUT=$$(($${TIMEOUT_MULTIPLIER:-1} * $(TEST_TIME_OUT))) \
 		timeout $$(($${TIMEOUT_MULTIPLIER:-1} * $(HARNESS_TIME_OUT))) \
 		prove --exec \
@@ -213,6 +225,10 @@ $(call target_variants,$(UT_SCRIPT_LISTS)):
 	@echo "Test target: $@"
 	sudo env $(UT_ENV) $(ENV) EXTRA_$(call buildattrs) \
 		UT_OUTPUT=$(UT_OUTPUT) TEST_TARGET="$@" \
+		ZF_SLOW_TESTS="${UT_SLOW}" \
+		ZF_UNSTABLE_TESTS="${UT_UNSTABLE}" \
+		ZF_RUN_SLOW_TESTS=$${ZF_RUN_SLOW_TESTS:-1} \
+		ZF_RUN_UNSTABLE_TESTS=$${ZF_RUN_UNSTABLE_TESTS:-0} \
 		TEST_TIME_OUT=$$(($${TIMEOUT_MULTIPLIER:-1} * $(TEST_TIME_OUT))) \
 		timeout $$(($${TIMEOUT_MULTIPLIER:-1} * $(HARNESS_TIME_OUT))) \
 		prove --exec \
