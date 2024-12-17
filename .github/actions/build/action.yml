@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: (c) 2024 Advanced Micro Devices, Inc.
+
+name: Build
+description: Build TCPDirect
+inputs:
+  tcpdirect_tree:
+    required: true
+    type: string
+    description: Path to the TCPDirect source tree to build
+  onload_tree:
+    required: true
+    type: string
+    description: Path to the Onload source tree to build TCPDirect with
+  build_target:
+    required: false
+    default: all
+    type: string
+    description: TCPDirect target to build, all or shim
+  debug:
+    required: false
+    default: false
+    type: boolean
+    description: Whether to build debug binaries
+runs:
+  using: "composite"
+  steps:
+    - name: Input Validation
+      shell: sh
+      env:
+        BUILD_TARGET: ${{ inputs.build_target }}
+      run: |
+        if [ "$BUILD_TARGET" != "all" && "$BUILD_TARGET" != "shim" ]; then
+          echo "Input Error: build_target must be either all or shim!"
+          exit 1
+        fi
+
+    - name: Build
+      shell: sh
+      env:
+        ONLOAD_TREE: ${{ inputs.onload_tree }}
+        ZF_DEVEL: ${{ inputs.build_target == 'shim' && 1 || 0 }}
+        NDEBUG: ${{ fromJSON(inputs.debug) && 0 || 1 }}
+        BUILD_TARGET: ${{ inputs.build_target }}
+      working-directory: ${{ inputs.tcpdirect_tree }}
+      run: make -j $(nproc) "$BUILD_TARGET"
