@@ -155,8 +155,10 @@ nm.slack_notify() {
             export CC=${CC}
             export ONLOAD_TREE=\$PWD/onload
             export ZF_DEVEL=1
+	    export ZF_RUN_UNSTABLE_TESTS=1
+	    export ZF_RUN_SLOW_TESTS=1
             export TEST_THREAD_NAME=zf
-            make -k -C tcpdirect test_jenkins
+            make -k -C tcpdirect test
           """, returnStatus: true)
           if (rc != 0) {
             unstable("not all tests passed")
