@@ -38,7 +38,6 @@ static void usage_msg(FILE* f)
   fprintf(f, "  -w       Use the zf waitable fd\n");
   fprintf(f, "  -r       Enable rx timestamping\n");
   fprintf(f, "  -q       Quiet -- do not emit progress messages\n");
-  fprintf(f, "  -p       Print zf attributes after stack startup\n");
 }
 
 
@@ -160,84 +159,10 @@ static void ev_loop_waitable_fd(struct zf_stack* stack,
 }
 
 
-/* return string containing the value of an attribute
- * allocates memory so must call free() after use */
-static int attr_to_str(struct zf_attr* attr, const char* name, char ** str_out)
-{
-#define MAX_LEN 64
-  int rc = 0;
-  int n = 0;
-  *str_out = NULL;
-  const char** docs_out;
-  int docs_len_out;
-  rc = zf_attr_doc(name, &docs_out, &docs_len_out);
-  if( rc < 0 )
-    return rc;
-  assert(docs_len_out >= 6);
-  if( ! strcmp(docs_out[1], "int") ) {
-    int64_t val;
-    if( (rc = zf_attr_get_int(attr, name, &val)) == 0 ) {
-      *str_out = malloc(MAX_LEN);
-      assert( *str_out != NULL );
-      n = snprintf(*str_out, MAX_LEN, "%"PRId64"", val);
-    }
-  }
-  else if ( ! strcmp(docs_out[1], "str") ) {
-    rc = zf_attr_get_str(attr, name, str_out);
-    /* need explicit Null check */
-    if ( (rc == 0) && ( *str_out == NULL ) ) {
-      *str_out = malloc(MAX_LEN);
-      n = snprintf(*str_out, MAX_LEN, "(null)");
-    }
-  }
-  else if ( ! strcmp(docs_out[1], "bitmask") ) {
-    uint64_t val;
-    if( (rc = zf_attr_get_int(attr, name, (int64_t*) &val)) == 0 ) {
-      *str_out = malloc(MAX_LEN);
-      n = snprintf(*str_out, MAX_LEN, "0x%"PRIx64"", val);
-    }
-  }
-  else {
-    rc = -EINVAL;
-  }
-  free(docs_out);
-
-  if( n >= MAX_LEN )
-    rc = -EOVERFLOW;
-  
-  if( rc < 0 )
-    free(*str_out);
-
-  return rc;
-  #undef MAX_LEN
-}
-
-
-void print_attrs(struct zf_attr* attr)
-{
-  const char** names_out;
-  int names_len_out;
-
-  /* return array of attribute names */
-  ZF_TRY(zf_attr_doc(NULL, &names_out, &names_len_out));
-  printf("%30s\t%s\n", "Attribute Name", "Value");
-
-  for( int i=0; i < names_len_out; ++i) {
-    char* value_str;
-    ZF_TRY(attr_to_str(attr, names_out[i], &value_str));
-    printf("%30s\t%s\n", names_out[i], value_str);
-    free(value_str);
-  }
-  printf("\n\n");
-  free(names_out);
-}
-
-
 int main(int argc, char* argv[])
 {
   int cfg_muxer = 0;
   int cfg_waitable_fd = 0;
-  bool cfg_print_attrs = false;
   
   int c;
   while( (c = getopt(argc, argv, "hmrwqp")) != -1 )
@@ -256,9 +181,6 @@ int main(int argc, char* argv[])
       break;
     case 'q':
       cfg_quiet = true;
-      break;
-    case 'p':
-      cfg_print_attrs = true;
       break;
     case '?':
       exit(1);
@@ -292,9 +214,6 @@ int main(int argc, char* argv[])
 
   struct zf_stack* stack;
   ZF_TRY(zf_stack_alloc(attr, &stack));
-
-  if( cfg_print_attrs )
-    print_attrs(attr);
 
   struct zfur* ur;
   ZF_TRY(zfur_alloc(&ur, stack, attr));
