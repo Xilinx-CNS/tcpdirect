@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: (c) 2024 Advanced Micro Devices, Inc.
+
+name: Test
+description: Run the TCPDirect unit tests
+inputs:
+  tcpdirect_tree:
+    required: true
+    type: string
+    description: Path to the TCPDirect source tree to build
+  onload_tree:
+    required: true
+    type: string
+    description: Path to the Onload source tree to build TCPDirect with
+  debug:
+    required: false
+    default: true
+    type: boolean
+    description: Whether to build debug binaries
+  test_timeout_multiplier:
+    description: Value to multiply with default test timeouts
+    default: 1
+    required: false
+    type: number
+  run_slow_tests:
+    description: Whether the unit tests should run tests marked as slow
+    default: true
+    required: false
+    type: boolean
+runs:
+  using: "composite"
+  steps:
+    - name: Run tests
+      shell: sh
+      working-directory: ${{ inputs.tcpdirect_tree }}
+      env:
+        ONLOAD_TREE: ${{ inputs.onload_tree }}
+        NDEBUG: ${{ fromJSON(inputs.debug) && 0 || 1 }}
+        TIMEOUT_MULTIPLIER: ${{ inputs.test_timeout_multiplier }}
+        ZF_RUN_SLOW_TESTS: ${{ fromJSON(inputs.run_slow_tests) && 1 || 0 }}
+        ZF_DEVEL: 1
+      run: UT_OUTPUT="$GITHUB_STEP_SUMMARY" make -j $(nproc) test
