@@ -23,29 +23,23 @@ def tm = new TestManager(this)
 @Field
 def scmmanager = new SCMManager(this)
 
+Properties get_version_info(String tcpdirect_dir) {
+  String versionsFileContents = readFile("${tcpdirect_dir}/versions.env")
+  Properties props = new Properties()
+  props.load(new StringReader(versionsFileContents))
+  return props
+}
 
-String[] tcpdirect_version(String tcpdirect_dir, String changeset, String product="TCPDirect") {
+String[] tcpdirect_version(Properties version_info) {
   def long_version, short_version
-  if( product == 'developer-build' ) {
-    long_version = '0' + changeset
-    short_version = long_version.take(13)
-  } else {
-    def version_info = readYaml(file: "${tcpdirect_dir}/versions.yaml")
-    if( ! version_info.containsKey('products') ) {
-      error("Invalid versions file - no products")
-    }
 
-    if( ! version_info['products'].containsKey(product) ) {
-      error("Cannot find product [${product}] - cannot build")
-    }
-
-    if( ! version_info['products'][product].containsKey('version') ) {
-      error("Product [${product}] has no version - cannot build")
-    }
-
-    long_version = version_info['products'][product]['version']
-    short_version = long_version
+  if( ! version_info.containsKey("TCPDIRECT_VERSION") ) {
+    error("Failed to extract TCPDirect version")
   }
+
+  long_version = version_info.TCPDIRECT_VERSION
+  short_version = long_version
+
   return ["${long_version}.${env.BUILD_NUMBER}", "${short_version}.${env.BUILD_NUMBER}"]
 }
 
@@ -87,14 +81,14 @@ nm.slack_notify() {
       }
       long_revision = scmVars.GIT_COMMIT
       short_revision = scmVars.GIT_COMMIT.substring(0,12)
-      version_info = readYaml(file: "tcpdirect/versions.yaml")
+      version_info = get_version_info("tcpdirect")
       echo "Got revision ${long_revision}"
 
-      (tcpdirect_version_long, tcpdirect_version_short) = tcpdirect_version('tcpdirect', long_revision)
+      (tcpdirect_version_long, tcpdirect_version_short) = tcpdirect_version(version_info)
 
       stash(name: 'tcpdirect-src', includes: 'tcpdirect/**', useDefaultExcludes: true)
 
-      onload_tarball = utils.getLatestOnloadTarball(version_info['products']['Onload']['version'])
+      onload_tarball = utils.getLatestOnloadTarball(version_info.ONLOAD_VERSION)
       sh(script: "mkdir -p onload")
       sh(script: "tar xzf ${onload_tarball} -C onload --strip-components=1")
       stash(name: 'onload-tar', includes: onload_tarball, useDefaultExcludes: true)
@@ -264,8 +258,8 @@ nm.slack_notify() {
   }
 
   // this uses 'runbench' node internally
-  am.doAutosmoke(version_info['products']['Onload']['repo_source'], version_info['products']['Onload']['version'],
-                 'last_known_good/' + version_info['products']['Onload']['version'],
+  am.doAutosmoke(version_info.ONLOAD_REPO_SOURCE, version_info.ONLOAD_VERSION,
+                 'last_known_good/' + version_info.ONLOAD_VERSION,
                  orgfilesRepo, personal_job, true, am.sourceUrl(), env.BRANCH_NAME)
 }
 

@@ -36,8 +36,8 @@ ZF_SHARED_LIB_STRIPPED := $(LIB_ROOT)/stripped/$(ZF_REALNAME)
 ZF_SHARED_LIB_STRIPPED_LINK := $(LIB_ROOT)/stripped/$(ZF_SONAME)
 ZF_SHARED_LIB_STRIPPED_LINK_BARE := $(LIB_ROOT)/stripped/$(ZF_SONAME_BARE)
 
-ZF_SEMANTIC_VERSION := $(shell awk '/version/ {print $$2}' \
-                        $(SRC_ROOT)/../versions.yaml)
+ZF_SEMANTIC_VERSION := $(shell . $(SRC_ROOT)/../versions.env; \
+                               echo "$$TCPDIRECT_VERSION")
 ZF_GIT_VERSION_INFO := $(shell git show -s --format="format:%h %cd" \
                         --date=short HEAD)
 ZF_GIT_BRANCH_INFO  := $(shell git symbolic-ref -q --short HEAD)
