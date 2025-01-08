@@ -27,20 +27,11 @@ Properties get_version_info(String tcpdirect_dir) {
   String versionsFileContents = readFile("${tcpdirect_dir}/versions.env")
   Properties props = new Properties()
   props.load(new StringReader(versionsFileContents))
-  return props
-}
-
-String[] tcpdirect_version(Properties version_info) {
-  def long_version, short_version
-
-  if( ! version_info.containsKey("TCPDIRECT_VERSION") ) {
+  if( ! props.containsKey("TCPDIRECT_VERSION") ) {
     error("Failed to extract TCPDirect version")
   }
-
-  long_version = version_info.TCPDIRECT_VERSION
-  short_version = long_version
-
-  return ["${long_version}.${env.BUILD_NUMBER}", "${short_version}.${env.BUILD_NUMBER}"]
+  props.TCPDIRECT_VERSION = "${props.TCPDIRECT_VERSION}.${env.BUILD_NUMBER}"
+  return props
 }
 
 void extractNotes(String scripts_dir, String tarball) {
@@ -58,12 +49,8 @@ nm.slack_notify() {
   def scmVars
   boolean personal_job = ! env.JOB_NAME.startsWith('tcpdirect/')
 
-  def long_revision
-  def short_revision
-  String tcpdirect_version_short, tcpdirect_version_long
   def version_info
   def onload_tarball
-
 
   // grab all the sources and stash them for other stages
   // this should be the only bit that deals with git
@@ -79,12 +66,8 @@ nm.slack_notify() {
       dir('tcpdirect') {
         scmVars = scmmanager.cloneGit(scm)
       }
-      long_revision = scmVars.GIT_COMMIT
-      short_revision = scmVars.GIT_COMMIT.substring(0,12)
       version_info = get_version_info("tcpdirect")
-      echo "Got revision ${long_revision}"
-
-      (tcpdirect_version_long, tcpdirect_version_short) = tcpdirect_version(version_info)
+      echo "Got revision ${scmVars.GIT_COMMIT}"
 
       stash(name: 'tcpdirect-src', includes: 'tcpdirect/**', useDefaultExcludes: true)
 
@@ -181,9 +164,9 @@ nm.slack_notify() {
                     returnStdout: true)
       sh """#!/bin/bash
         export CC=${CC}
-        tcpdirect/scripts/zf_mkdist --version ${tcpdirect_version_long} --name tcpdirect ${onload_tarball}
+        tcpdirect/scripts/zf_mkdist --version ${version_info.TCPDIRECT_VERSION} --name tcpdirect ${onload_tarball}
       """
-      extractNotes("tcpdirect/scripts", "tcpdirect/build/tcpdirect-${tcpdirect_version_long}.tgz")
+      extractNotes("tcpdirect/scripts", "tcpdirect/build/tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz")
       dir('tcpdirect/build/') {
         archiveArtifacts(artifacts: '*.tgz')
         archiveArtifacts(artifacts: '*.md5')
@@ -191,21 +174,21 @@ nm.slack_notify() {
         sh 'rm *ReleaseNotes.txt'
         stash name: 'text_files', includes: '*.txt'
         zip_and_archive_files(
-          "tcpdirect-${tcpdirect_version_long}-tarball-doxbox.zip",
+          "tcpdirect-${version_info.TCPDIRECT_VERSION}-tarball-doxbox.zip",
           '*.tgz',
           '*.md5',
           '*.txt'
         )
         stash(
           name: "tcpdirect-release-tarball",
-          includes: "tcpdirect-${tcpdirect_version_long}.tgz",
+          includes: "tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz",
         )
       }
       stash(name: "tcpdirect-build-artifacts", includes: "tcpdirect/build/artifacts/**")
     }
 
     stage('Archive unstripped binaries') {
-      sh "tcpdirect/scripts/zf_make_tarball --version ${tcpdirect_version_long} --unstripped"
+      sh "tcpdirect/scripts/zf_make_tarball --version ${version_info.TCPDIRECT_VERSION} --unstripped"
       dir('tcpdirect/build/') {
         archiveArtifacts artifacts: '*unstripped*.tgz', allowEmptyArchive: true
         sh 'rm -f *unstripped*.tgz'
@@ -220,11 +203,11 @@ nm.slack_notify() {
           deleteDir()
           unstash('tcpdirect-release-tarball')
           unstash('tcpdirect-src')
-          sh "tcpdirect/scripts/zf_make_official_srpm tcpdirect-${tcpdirect_version_long}.tgz --version ${tcpdirect_version_long}"
+          sh "tcpdirect/scripts/zf_make_official_srpm tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz --version ${version_info.TCPDIRECT_VERSION}"
           archiveArtifacts allowEmptyArchive: true, artifacts: '*.src.rpm', followSymlinks: false
           unstash('text_files')
           zip_and_archive_files(
-          "tcpdirect-${tcpdirect_version_long}-srpm-doxbox.zip",
+          "tcpdirect-${version_info.TCPDIRECT_VERSION}-srpm-doxbox.zip",
           '*.src.rpm',
           '*.txt'
         )
@@ -235,19 +218,19 @@ nm.slack_notify() {
           stage('stage installation') {
             deleteDir()
             unstash('tcpdirect-release-tarball')
-            sh "tar xvzf tcpdirect-${tcpdirect_version_long}.tgz"
-            sh "tcpdirect-${tcpdirect_version_long}/scripts/zf_install --packaging --dest-dir staging/usr"
+            sh "tar xvzf tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz"
+            sh "tcpdirect-${version_info.TCPDIRECT_VERSION}/scripts/zf_install --packaging --dest-dir staging/usr"
             stash(name: "tcpdirect-staged-installation", includes: "staging/**")
           }
           stage('build deb') {
             deleteDir()
             unstash('tcpdirect-staged-installation')
             unstash('tcpdirect-src')
-            sh "tcpdirect/scripts/zf_make_official_deb --version ${tcpdirect_version_long} staging"
+            sh "tcpdirect/scripts/zf_make_official_deb --version ${version_info.TCPDIRECT_VERSION} staging"
             archiveArtifacts allowEmptyArchive: true, artifacts: '*.deb', followSymlinks: false
             unstash('text_files')
             zip_and_archive_files(
-              "tcpdirect-${tcpdirect_version_long}-deb-doxbox.zip",
+              "tcpdirect-${version_info.TCPDIRECT_VERSION}-deb-doxbox.zip",
               '*.deb',
               '*.txt'
             )
