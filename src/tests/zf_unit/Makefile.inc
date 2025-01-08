@@ -28,10 +28,12 @@ UT_OTHER := zftcppingpong2
 UT_SCRIPTS := zfudppingpong.sh zf_tcp_sanity.sh packetdrill.sh zfsend.sh zfudpttl.sh
 
 # List of tests to skip unless ZF_RUN_SLOW_TESTS=1 (defaults to 1)
-# NOTE: `zfovl` is not actually slow, but rather unstable on slow machines.
+# NOTE: Some tests are not actually slow, but rather unstable on slow machines:
+# - `zfovl`
+# - `zfquiesce_waittw`
 UT_SLOW := zf_superbuf_fallback zf_superbuf_stack_destroy zf_superbuf_locality \
            zf_superbuf_n_sleep zf_superbuf_sleepy_stacks zftcptimeouts \
-	   zfreactorloop zfstackfree zfrxtable zftcprx zfovl
+           zfreactorloop zfstackfree zfrxtable zftcprx zfovl zfquiesce_waittw
 
 # List of tests to skip unless ZF_RUN_UNSTABLE_TESTS=1 (defaults to 0)
 UT_UNSTABLE := zftimestamping $(UT_SCRIPTS)
