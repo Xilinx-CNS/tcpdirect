@@ -13,7 +13,7 @@ my_dir=$(cd "$(dirname "$0")" && /bin/pwd)
 top_dir=$(dirname "${my_dir}")
 
 tarball_files_from="
-versions.yaml
+versions.env
 Makefile
 Makefile.onload
 Makefile-top.inc

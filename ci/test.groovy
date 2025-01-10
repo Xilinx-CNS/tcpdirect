@@ -23,30 +23,15 @@ def tm = new TestManager(this)
 @Field
 def scmmanager = new SCMManager(this)
 
-
-String[] tcpdirect_version(String tcpdirect_dir, String changeset, String product="TCPDirect") {
-  def long_version, short_version
-  if( product == 'developer-build' ) {
-    long_version = '0' + changeset
-    short_version = long_version.take(13)
-  } else {
-    def version_info = readYaml(file: "${tcpdirect_dir}/versions.yaml")
-    if( ! version_info.containsKey('products') ) {
-      error("Invalid versions file - no products")
-    }
-
-    if( ! version_info['products'].containsKey(product) ) {
-      error("Cannot find product [${product}] - cannot build")
-    }
-
-    if( ! version_info['products'][product].containsKey('version') ) {
-      error("Product [${product}] has no version - cannot build")
-    }
-
-    long_version = version_info['products'][product]['version']
-    short_version = long_version
+Properties get_version_info(String tcpdirect_dir) {
+  String versionsFileContents = readFile("${tcpdirect_dir}/versions.env")
+  Properties props = new Properties()
+  props.load(new StringReader(versionsFileContents))
+  if( ! props.containsKey("TCPDIRECT_VERSION") ) {
+    error("Failed to extract TCPDirect version")
   }
-  return ["${long_version}.${env.BUILD_NUMBER}", "${short_version}.${env.BUILD_NUMBER}"]
+  props.TCPDIRECT_VERSION = "${props.TCPDIRECT_VERSION}.${env.BUILD_NUMBER}"
+  return props
 }
 
 void extractNotes(String scripts_dir, String tarball) {
@@ -64,12 +49,8 @@ nm.slack_notify() {
   def scmVars
   boolean personal_job = ! env.JOB_NAME.startsWith('tcpdirect/')
 
-  def long_revision
-  def short_revision
-  String tcpdirect_version_short, tcpdirect_version_long
   def version_info
   def onload_tarball
-
 
   // grab all the sources and stash them for other stages
   // this should be the only bit that deals with git
@@ -85,16 +66,12 @@ nm.slack_notify() {
       dir('tcpdirect') {
         scmVars = scmmanager.cloneGit(scm)
       }
-      long_revision = scmVars.GIT_COMMIT
-      short_revision = scmVars.GIT_COMMIT.substring(0,12)
-      version_info = readYaml(file: "tcpdirect/versions.yaml")
-      echo "Got revision ${long_revision}"
-
-      (tcpdirect_version_long, tcpdirect_version_short) = tcpdirect_version('tcpdirect', long_revision)
+      version_info = get_version_info("tcpdirect")
+      echo "Got revision ${scmVars.GIT_COMMIT}"
 
       stash(name: 'tcpdirect-src', includes: 'tcpdirect/**', useDefaultExcludes: true)
 
-      onload_tarball = utils.getLatestOnloadTarball(version_info['products']['Onload']['version'])
+      onload_tarball = utils.getLatestOnloadTarball(version_info.ONLOAD_VERSION)
       sh(script: "mkdir -p onload")
       sh(script: "tar xzf ${onload_tarball} -C onload --strip-components=1")
       stash(name: 'onload-tar', includes: onload_tarball, useDefaultExcludes: true)
@@ -179,9 +156,9 @@ nm.slack_notify() {
                     returnStdout: true)
       sh """#!/bin/bash
         export CC=${CC}
-        tcpdirect/scripts/zf_mkdist --version ${tcpdirect_version_long} --name tcpdirect ${onload_tarball}
+        tcpdirect/scripts/zf_mkdist --version ${version_info.TCPDIRECT_VERSION} --name tcpdirect ${onload_tarball}
       """
-      extractNotes("tcpdirect/scripts", "tcpdirect/build/tcpdirect-${tcpdirect_version_long}.tgz")
+      extractNotes("tcpdirect/scripts", "tcpdirect/build/tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz")
       dir('tcpdirect/build/') {
         archiveArtifacts(artifacts: '*.tgz')
         archiveArtifacts(artifacts: '*.md5')
@@ -189,7 +166,7 @@ nm.slack_notify() {
         sh 'rm *ReleaseNotes.txt'
         stash name: 'text_files', includes: '*.txt'
         zip_and_archive_files(
-          "tcpdirect-${tcpdirect_version_long}-tarball-doxbox.zip",
+          "tcpdirect-${version_info.TCPDIRECT_VERSION}-tarball-doxbox.zip",
           '*.tgz',
           '*.md5',
           '*.txt'
@@ -207,11 +184,11 @@ nm.slack_notify() {
           String workspace = pwd()
           String outdir = "${workspace}/rpmbuild"
           sh(script: "mkdir -p ${outdir}")
-          sh "fakeroot tcpdirect/scripts/zf_make_official_srpm --version ${tcpdirect_version_long} --outdir ${outdir}"
+          sh "fakeroot tcpdirect/scripts/zf_make_official_srpm --version ${version_info.TCPDIRECT_VERSION} --outdir ${outdir}"
           archiveArtifacts allowEmptyArchive: true, artifacts: 'rpmbuild/SRPMS/*.src.rpm', followSymlinks: false
           unstash('text_files')
           zip_and_archive_files(
-            "tcpdirect-${tcpdirect_version_long}-srpm-doxbox.zip",
+            "tcpdirect-${version_info.TCPDIRECT_VERSION}-srpm-doxbox.zip",
             'rpmbuild/SRPMS/*.src.rpm',
             '*.txt'
           )
@@ -223,20 +200,20 @@ nm.slack_notify() {
           stage('Create source tarball') {
             deleteDir()
             unstash('tcpdirect-src')
-            sh "tcpdirect/scripts/zf_mksrc --version ${tcpdirect_version_long}"
-            stash name: 'tcpdirect-tar', includes: "tcpdirect-${tcpdirect_version_long}.tar.gz"
-            sh "mv tcpdirect-${tcpdirect_version_long}.tar.gz tcpdirect-source-${tcpdirect_version_long}.tar.gz"
-            archiveArtifacts allowEmptyArchive: true, artifacts: "tcpdirect-source-${tcpdirect_version_long}.tar.gz", followSymlinks: false
+            sh "tcpdirect/scripts/zf_mksrc --version ${version_info.TCPDIRECT_VERSION}"
+            stash name: 'tcpdirect-tar', includes: "tcpdirect-${version_info.TCPDIRECT_VERSION}.tar.gz"
+            sh "mv tcpdirect-${version_info.TCPDIRECT_VERSION}.tar.gz tcpdirect-source-${version_info.TCPDIRECT_VERSION}.tar.gz"
+            archiveArtifacts allowEmptyArchive: true, artifacts: "tcpdirect-source-${version_info.TCPDIRECT_VERSION}.tar.gz", followSymlinks: false
           }
           stage('create deb') {
             deleteDir()
             unstash('tcpdirect-tar')
             unstash('tcpdirect-src')
-            sh "tcpdirect/scripts/zf_make_official_deb --version ${tcpdirect_version_long} tcpdirect-${tcpdirect_version_long}.tar.gz"
+            sh "tcpdirect/scripts/zf_make_official_deb --version ${version_info.TCPDIRECT_VERSION} tcpdirect-${version_info.TCPDIRECT_VERSION}.tar.gz"
             archiveArtifacts allowEmptyArchive: true, artifacts: '*debiansource.tgz', followSymlinks: false
             unstash('text_files')
             zip_and_archive_files(
-              "tcpdirect-${tcpdirect_version_long}-deb-doxbox.zip",
+              "tcpdirect-${version_info.TCPDIRECT_VERSION}-deb-doxbox.zip",
               '*debiansource.tgz',
               '*.txt'
             )
@@ -247,8 +224,8 @@ nm.slack_notify() {
   }
 
   // this uses 'runbench' node internally
-  am.doAutosmoke(version_info['products']['Onload']['repo_source'], version_info['products']['Onload']['version'],
-                 'last_known_good/' + version_info['products']['Onload']['version'],
+  am.doAutosmoke(version_info.ONLOAD_REPO_SOURCE, version_info.ONLOAD_VERSION,
+                 'last_known_good/' + version_info.ONLOAD_VERSION,
                  orgfilesRepo, personal_job, true, am.sourceUrl(), env.BRANCH_NAME)
 }
 
