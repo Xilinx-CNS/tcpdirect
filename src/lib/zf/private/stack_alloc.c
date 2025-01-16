@@ -290,7 +290,7 @@ static int zf_stack_init_pio(struct zf_stack_impl* sti, struct zf_attr* attr,
 
 static int zf_stack_init_ctpio_stack_config(struct zf_stack_impl* sti,
                                             struct zf_attr* attr,
-                                            unsigned* ctpio_mode)
+                                            int* ctpio_mode)
 {
   zf_stack* st = &sti->st;
 
@@ -331,7 +331,7 @@ static int zf_stack_init_ctpio_stack_config(struct zf_stack_impl* sti,
 
 static int zf_stack_init_ctpio_nic_config(zf_stack_impl* sti,
                                           struct zf_attr* attr,
-                                          unsigned ctpio_mode, int nicno, 
+                                          int ctpio_mode, int nicno, 
                                           unsigned* vi_flags)
 {
   zf_stack* st = &sti->st;
@@ -358,7 +358,7 @@ static int zf_stack_init_ctpio_nic_config(zf_stack_impl* sti,
 
   if( ctpio_available && attr->ctpio ) {
     *vi_flags |= EF_VI_TX_CTPIO;
-    if( ctpio_mode < 0 )
+    if( ctpio_mode == CTPIO_MODE_SF_NP )
       *vi_flags |= EF_VI_TX_CTPIO_NO_POISON;
 
     if( attr->ctpio_max_frame_len > 0 )
@@ -545,7 +545,7 @@ static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
 int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
                                 struct zf_attr* attr, int nicno,
                                 int ifindex, zf_if_info* if_cplane_info,
-                                unsigned vi_flags, unsigned ctpio_mode)
+                                unsigned vi_flags, int ctpio_mode)
 {
   zf_stack* st = &sti->st;
   struct zf_stack_nic* st_nic = &st->nic[nicno];
@@ -826,7 +826,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   if( attr->tx_timestamping )
     vi_flags |= EF_VI_TX_TIMESTAMPS;
 
-  unsigned ctpio_mode;
+  int ctpio_mode;
   rc = zf_stack_init_ctpio_stack_config(sti, attr, &ctpio_mode);
   if( rc < 0 )
     goto fail2;
