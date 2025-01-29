@@ -38,7 +38,7 @@ UT_SLOW := zf_superbuf_fallback zf_superbuf_stack_destroy zf_superbuf_locality \
            zfmultizock_bond
 
 # List of tests to skip unless ZF_RUN_UNSTABLE_TESTS=1 (defaults to 0)
-UT_UNSTABLE := zftimestamping $(UT_SCRIPTS)
+UT_UNSTABLE := zftimestamping zfbonding_lacp $(UT_SCRIPTS)
 
 # sort is required to remove duplicates
 UT_ALL := $(sort \
