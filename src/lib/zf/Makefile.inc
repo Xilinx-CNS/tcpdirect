@@ -82,6 +82,10 @@ $(ZF_SHARED_LIB_LINK) $(ZF_SHARED_LIB_LINK_BARE): $(ZF_SHARED_LIB)
 $(ZF_STATIC_LIB): $(LIB_OBJS) $(LDEP)
 	@mkdir -p $(dir $@)
 	$(CLINK) -fPIC -nostdlib -z combreloc -r $^ -o $@
+	objcopy $$(nm -g -P $(CIUL_LIB) | sed -E "s/.*:$$//g" \
+					| sort -u \
+					| awk '{print "--localize-symbol="$$1}' \
+					| tr '\n' ' ') $@
 
 .PHONY: lib
 all: lib
