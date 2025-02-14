@@ -2295,8 +2295,8 @@ static int emu_ef_vi_alloc_from_pd(ef_vi* vi, ef_driver_handle vi_dh,
 
     memset(&evi->rxq.shm, 0, sizeof(evi->rxq.shm));
     efct_kbufs_init_internal(vi, &evi->rxq.shm,
-                             mock_ef_vi_efct_superbuf_refresh, 0,
                              state->superbuf_mapping);
+    vi->efct_rxqs.ops->refresh = mock_ef_vi_efct_superbuf_refresh;
 
     emu_environment* env = emu_environment_get();
     pthread_mutex_lock(&env->efct_edev_ops_mutex);
