@@ -579,14 +579,6 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   if( rc < 0 )
     goto fail1;
 
-  if( !(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_RX_LL) ||
-      !(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_TX_LL) ) {
-    zf_log_stack_warn(st, "Interface %s is not in low latency mode.\n",
-                          sti->nic[nicno].if_name);
-    zf_log_stack_warn(st, "Low latency mode is recommended for best "
-                          "latency with TCPDirect.\n");
-  }
-
   if ( attr->tx_ring_max != 0 ) {
     rc = zf_stack_init_ctpio_nic_config(sti, attr, ctpio_mode, nicno, &vi_flags);
     if( rc < 0 )
@@ -652,6 +644,15 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
               st_nic->rx_prefix_len == ES_DZ_RX_PREFIX_SIZE);
 
     ef_vi_receive_set_buffer_len(&st_nic->vi, PKT_BUF_SIZE_USABLE);
+  }
+
+  if( (!(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_RX_LL) ||
+      !(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_TX_LL)) &&
+      !(st_nic->vi.nic_type.arch == EF_VI_ARCH_EFCT) ) {
+    zf_log_stack_warn(st, "Interface %s is not in low latency mode.\n",
+                          sti->nic[nicno].if_name);
+    zf_log_stack_warn(st, "Low latency mode is recommended for best "
+                          "latency with TCPDirect.\n");
   }
 
   zf_log_stack_info(st,
