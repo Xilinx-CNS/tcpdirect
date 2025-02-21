@@ -166,10 +166,10 @@ int zf_delegated_send_complete(struct zft* ts, const struct iovec* iov,
     already_acked = 0;
 
     /* Queue remaining packets on send queue */
+    tcp_output_timers_common(zf_stack_from_zocket(tcp), tcp, pcb->snd_lbb);
     rc = tcp_queue_sent_segments(tcp, &pcb->sendq, &iov_temp, &pcb->snd_lbb);
     if( ZF_UNLIKELY(rc < 0) )
       goto out;
-    tcp_output_timers_common(zf_stack_from_zocket(tcp), tcp, pcb->snd_lbb);
 
     unsigned snd_buf_consumed = pcb->mss * rc;
     if( snd_buf_consumed > pcb->snd_buf )
