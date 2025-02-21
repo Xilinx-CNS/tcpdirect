@@ -33,7 +33,8 @@ struct resources {
 
 
 static bool cfg_quiet = false;
-static bool cfg_rx_timestamping = false;
+static bool cfg_rx_hw_timestamping = false;
+static bool cfg_rx_sw_timestamping = false;
 static struct resources res;
 
 /* Mutex to protect printing from different threads */
@@ -49,7 +50,8 @@ static void usage_msg(FILE* f)
   fprintf(f, "  -h       Print this usage message\n");
   fprintf(f, "  -m       Use the zf multiplexer\n");
   fprintf(f, "  -w       Use the zf waitable fd\n");
-  fprintf(f, "  -r       Enable rx timestamping\n");
+  fprintf(f, "  -r       Enable rx hardware timestamping\n");
+  fprintf(f, "  -t       Enable rx software timestamping\n");
   fprintf(f, "  -q       Quiet -- do not emit progress messages\n");
   fprintf(f, "  -p       Print zf attributes after stack startup\n");
 }
@@ -80,6 +82,7 @@ static void try_recv(struct zfur* ur)
     struct zfur_msg msg;
     struct iovec iov[1];
   } rd;
+  struct timespec ts;
 
   do {
     rd.msg.iovcnt = sizeof(rd.iov) / sizeof(rd.iov[0]);
@@ -91,11 +94,15 @@ static void try_recv(struct zfur* ur)
     /* Do something useful with the datagram here! */
 
     /* In the case rx timestamping capabilities are enabled, we can retrieve
-     * the time at which the packet was received.
+     * the time at which the packet was received for software and hardware.
      * */
-    if( cfg_rx_timestamping ) {
+    if( cfg_rx_sw_timestamping ) {
+      clock_gettime(CLOCK_REALTIME, &ts);
+      vlog("Software timestamp: %lld.%.9ld\n", ts.tv_sec, ts.tv_nsec);
+    }
+    
+    if( cfg_rx_hw_timestamping ) {
       unsigned flags;
-      struct timespec ts;
       int rc = zfur_pkt_get_timestamp(ur, &rd.msg, &ts, 0, &flags);
 
       if( rc == 0 )
@@ -289,7 +296,7 @@ int main(int argc, char* argv[])
   bool cfg_print_attrs = false;
   
   int c;
-  while( (c = getopt(argc, argv, "hmrwqp")) != -1 )
+  while( (c = getopt(argc, argv, "hmrtwqp")) != -1 )
     switch( c ) {
     case 'h':
       usage_msg(stdout);
@@ -301,7 +308,10 @@ int main(int argc, char* argv[])
       cfg_waitable_fd = 1;
       break;
     case 'r':
-      cfg_rx_timestamping = 1;
+      cfg_rx_hw_timestamping = 1;
+      break;
+    case 't':
+      cfg_rx_sw_timestamping = 1;
       break;
     case 'q':
       cfg_quiet = true;
@@ -336,7 +346,7 @@ int main(int argc, char* argv[])
   struct zf_attr* attr;
   ZF_TRY(zf_attr_alloc(&attr));
 
-  if( cfg_rx_timestamping )
+  if( cfg_rx_hw_timestamping )
     ZF_TRY(zf_attr_set_int(attr, "rx_timestamping", 1));
 
   struct zf_stack* stack;
