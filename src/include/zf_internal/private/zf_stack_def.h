@@ -305,6 +305,9 @@ struct zf_stack_impl {
   /* Onload driver handle for shared-memory purposes. */
   int onload_dh;
 
+  void (*reset_callback)(void*);
+  void* reset_callback_arg;
+
   /* Must be last field */
   zf_allocator alloc;
 };

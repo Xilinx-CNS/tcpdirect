@@ -167,5 +167,16 @@ enum zf_stack_feature {
 */
 ZF_LIBENTRY int zf_stack_query_feature(struct zf_stack* stack, enum zf_stack_feature feature);
 
+/*! \brief Set a function callback for when a reset occurs on a NIC.
+**
+** \param stack     A pointer to the stack to set the callback for
+** \param func      Function to be called on reset
+** \param arg       Argument to be passed to callback
+**
+** \return 0 on success
+*/
+ZF_LIBENTRY
+int zf_set_reset_callback(struct zf_stack* st, void (*func)(void*), void* arg);
+
 #endif /* __ZF_STACK_H__ */
 /** @} */
