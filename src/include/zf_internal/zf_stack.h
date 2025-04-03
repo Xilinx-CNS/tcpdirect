@@ -71,7 +71,7 @@ ZF_HOT static inline void zf_stack_refill_rx_ring(struct zf_stack* st,
                                                   int nic, unsigned max_count)
 {
   ef_vi* vi = &st->nic[nic].vi;
-  if( vi->nic_type.arch == EF_VI_ARCH_EFCT )
+  if( *zf_stack_res_nic_flags(st, nic) & ZF_RES_NIC_FLAG_RX_REF )
     return;
   unsigned space = ef_vi_receive_space(vi);
   if( space < st->nic[nic].rx_ring_refill_batch_size )

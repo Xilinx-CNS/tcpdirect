@@ -181,6 +181,9 @@ struct zf_stack {
 #define ZF_RES_NIC_FLAG_VLAN_FILTERS 0x1
 #define ZF_RES_NIC_FLAG_RX_LL        0x2
 #define ZF_RES_NIC_FLAG_TX_LL        0x4
+#define ZF_RES_NIC_FLAG_RX_REF       0x8
+#define ZF_RES_NIC_FLAG_CTPIO_ONLY   0x10
+#define ZF_RES_NIC_FLAG_PIO          0x20
 
 #include <onload/version.h>
 #define ZF_VERSION_LENGTH_MAX OO_VER_STR_LEN
@@ -340,5 +343,10 @@ static inline const ef_vi* zf_stack_nic_tx_vi(const zf_stack* st, int nicno) {
 
 static inline bool zf_stack_nic_has_tx_vi(const zf_stack* st, int nicno) {
   return st->nic[nicno].tx_vi.inited; }
+
+static inline unsigned* zf_stack_res_nic_flags(zf_stack* st, int nicno) {
+  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
+  return &sti->nic[nicno].flags;
+}
 
 #endif /* __ZF_INTERNAL_STACK_DEF_H__ */

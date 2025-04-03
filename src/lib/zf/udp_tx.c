@@ -194,7 +194,7 @@ try_clean_tx_completions(struct zf_udp_tx* udp_tx)
   int iterations = 0;
 #endif
 
-  if( vi->nic_type.arch != EF_VI_ARCH_EFCT )
+  if( *zf_stack_res_nic_flags(st, nicno) &  ZF_RES_NIC_FLAG_CTPIO_ONLY )
     return false;
   for( ; ; ) {
     ef_event ev;

@@ -96,7 +96,8 @@ void dump_nic(SkewPointer<zf_stack_impl> stimpl, int index)
     return;
 
   zf_dump("nic%d: vi=%d vi_flags=%x nic_flags=%x intf=%s index=%d hw=%u%c%u\n",
-          index, ef_vi_instance(vi), ef_vi_flags(vi), stimpl->nic[index].flags,
+          index, ef_vi_instance(vi), ef_vi_flags(vi),
+          *zf_stack_res_nic_flags(&stimpl->st, index),
           stimpl->nic[index].if_name, stimpl->nic[index].ifindex,
           vi->nic_type.arch, vi->nic_type.variant, vi->nic_type.revision);
 #if 0

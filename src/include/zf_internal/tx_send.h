@@ -164,7 +164,7 @@ zf_send(struct zf_tx* restrict tx,
     return -EAGAIN;
 #endif
 
-  if( vi->nic_type.arch == EF_VI_ARCH_EFCT ) {
+  if( *zf_stack_res_nic_flags(st, nicno) & ZF_RES_NIC_FLAG_CTPIO_ONLY ) {
     /* FIXME get X3 overhead sorted properly */
     if(ZF_UNLIKELY( ef_vi_transmit_space_bytes(vi) < (int)tot_len + 128 )) {
       if( st->flags & ZF_STACK_FLAG_TRANSMIT_WARM_ENABLED )
@@ -207,7 +207,7 @@ zf_send(struct zf_tx* restrict tx,
       !ctpio_is_allowed(st_nic, tot_len) &&
       pio_is_available(st_nic) &&
       tot_len <= max_pio_len(st_nic) && iov_cnt <= 2 ) {
-    zf_assert_nequal(vi->nic_type.arch, EF_VI_ARCH_EFCT);
+    zf_assert(*zf_stack_res_nic_flags(st, nicno) & ZF_RES_NIC_FLAG_PIO);
     int pio_buf_no = st_nic->pio.busy & 1;
     int orig_pio_ofs = pio_buf_no ? max_pio_len(st_nic) : 0;
     rc = ef10_ef_vi_transmitv_copy_pio(vi, orig_pio_ofs, iov, iov_cnt, 1);
@@ -288,6 +288,7 @@ zf_send(struct zf_tx* restrict tx,
     }
   }
   zf_assert_nequal(vi->nic_type.arch, EF_VI_ARCH_EFCT);
+  zf_assert_nequal(vi->nic_type.arch, EF_VI_ARCH_EF10CT);
   /* Strictly speaking, we should call ef_vi_transmit_ctpio_fallback()
    * to post a CTPIO fallback descriptor. However, that entry point is
    * actually identical to this one, and this code path is also used

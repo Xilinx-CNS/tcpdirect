@@ -242,12 +242,13 @@ int zf_stack_free(struct zf_stack* stack)
       unsigned tx_packets = ef_vi_transmit_fill_level(zf_stack_nic_tx_vi(stack, nicno)) - pkts_in_pio;
       unsigned rx_packets = ef_vi_receive_fill_level(&stack->nic[nicno].vi);
 
-      /* For X3 ef_vi_transmit_fill_level and PIO states are bogus */
-      if( zf_stack_nic_tx_vi(stack, nicno)->nic_type.arch != EF_VI_ARCH_EFCT )
+      /* For CTPIO only boards, ef_vi_transmit_fill_level and PIO states are
+       * bogus */
+      if( !(*zf_stack_res_nic_flags(stack, nicno) &
+            ZF_RES_NIC_FLAG_CTPIO_ONLY) ) {
         pkts_accounted += tx_packets;
-
-      if( stack->nic[nicno].vi.nic_type.arch != EF_VI_ARCH_EFCT )
         pkts_accounted += rx_packets;
+      }
 
       zf_log_stack_trace(stack,
                          "%s: VI %d: busy pkts=%d vs %d: rx_hw=%d tx_hw=%d "

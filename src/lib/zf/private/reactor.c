@@ -508,10 +508,11 @@ __zf_reactor_perform(struct zf_stack* st, unsigned spin_cnt)
            * from the future in the next RX buffer. */
           pkt_id next_packet_id = 0;
           char* next_packet;
-          bool is_efct = vi->nic_type.arch == EF_VI_ARCH_EFCT;
+          bool is_rx_ref = *zf_stack_res_nic_flags(st, nic) &
+                           ZF_RES_NIC_FLAG_RX_REF;
           bool packet_present;
 
-          if( is_efct ) {
+          if( is_rx_ref ) {
             char* vpkt = (char*)efct_vi_rx_future_peek(vi);
             packet_present = vpkt != NULL;
             if( packet_present ) {
@@ -643,7 +644,7 @@ zf_reactor_purge_event(struct zf_stack* st, int nic, ef_vi* vi, ef_event* ev)
   case EF_EVENT_TYPE_RX:
     zf_assert_nequal(EF_EVENT_RX_SOP(*ev), 0);
     zf_assert_equal(EF_EVENT_RX_CONT(*ev), 0);
-    zf_assert_nequal(vi->nic_type.arch, EF_VI_ARCH_EFCT);
+    zf_assert(!(*zf_stack_res_nic_flags(st, nic) & ZF_RES_NIC_FLAG_RX_REF));
     zf_pool_free_pkt(&st->pool, EF_EVENT_RX_RQ_ID(*ev));
     zf_log_event_trace(st, "%s: purged event %x\n", __FUNCTION__,
                        EF_EVENT_RX_RQ_ID(*ev));
@@ -652,7 +653,7 @@ zf_reactor_purge_event(struct zf_stack* st, int nic, ef_vi* vi, ef_event* ev)
     zf_reactor_handle_tx_event(st, nic, vi, ev);
     return ZF_REACTOR_PURGE_STATUS_TX;
   case EF_EVENT_TYPE_RX_REF:
-    zf_assert_equal(vi->nic_type.arch, EF_VI_ARCH_EFCT);
+    zf_assert(*zf_stack_res_nic_flags(st, nic) & ZF_RES_NIC_FLAG_RX_REF);
     efct_vi_rxpkt_release(vi, ev->rx_ref.pkt_id);
     zf_log_event_trace(st, "%s: purged event %x\n", __FUNCTION__, ev->rx_ref.pkt_id);
     return ZF_REACTOR_PURGE_STATUS_RX;
