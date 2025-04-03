@@ -288,6 +288,7 @@ zf_send(struct zf_tx* restrict tx,
     }
   }
   zf_assert_nequal(vi->nic_type.arch, EF_VI_ARCH_EFCT);
+  zf_assert_nequal(vi->nic_type.arch, EF_VI_ARCH_EF10CT);
   /* Strictly speaking, we should call ef_vi_transmit_ctpio_fallback()
    * to post a CTPIO fallback descriptor. However, that entry point is
    * actually identical to this one, and this code path is also used
