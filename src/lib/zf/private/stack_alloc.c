@@ -491,13 +491,14 @@ static void zf_stack_init_state(struct zf_stack_impl* sti,
 static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
 {
   struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
+  unsigned* res_nic_flags = zf_stack_res_nic_flags(st, nicno);
   unsigned long vlan_filters;
   unsigned long variant;
   ef_driver_handle dh = sti->nic[nicno].dh;
   ef_pd* pd = &sti->nic[nicno].pd;
   int rc;
 
-  sti->nic[nicno].flags = 0;
+  *res_nic_flags = 0;
 
   rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_RX_FW_VARIANT, &variant);
   if( rc != 0 ) {
@@ -512,7 +513,7 @@ static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
     return -EOPNOTSUPP;
   }
   if( variant == MC_CMD_GET_CAPABILITIES_OUT_RXDP_LOW_LATENCY )
-    sti->nic[nicno].flags |= ZF_RES_NIC_FLAG_RX_LL;
+    *res_nic_flags |= ZF_RES_NIC_FLAG_RX_LL;
 
   rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_TX_FW_VARIANT, &variant);
   if( rc != 0 ) {
@@ -527,12 +528,12 @@ static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
     return -EOPNOTSUPP;
   }
   if( variant == MC_CMD_GET_CAPABILITIES_OUT_TXDP_LOW_LATENCY )
-    sti->nic[nicno].flags |= ZF_RES_NIC_FLAG_TX_LL;
+    *res_nic_flags |= ZF_RES_NIC_FLAG_TX_LL;
 
   rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_RX_FILTER_TYPE_IP_VLAN,
                               &vlan_filters);
   if( rc == 0 && vlan_filters != 0 )
-    sti->nic[nicno].flags |= ZF_RES_NIC_FLAG_VLAN_FILTERS;
+    *res_nic_flags |= ZF_RES_NIC_FLAG_VLAN_FILTERS;
 
   return 0;
 }
@@ -546,6 +547,7 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   zf_stack* st = &sti->st;
   struct zf_stack_nic* st_nic = &st->nic[nicno];
   struct zf_stack_res_nic* sti_nic = &sti->nic[nicno];
+  unsigned* res_nic_flags = zf_stack_res_nic_flags(st, nicno);
   int rc;
 
   /* Open driver. */
@@ -574,8 +576,8 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   if( rc < 0 )
     goto fail1;
 
-  if( !(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_RX_LL) ||
-      !(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_TX_LL) ) {
+  if( !(*res_nic_flags & ZF_RES_NIC_FLAG_RX_LL) ||
+      !(*res_nic_flags & ZF_RES_NIC_FLAG_TX_LL) ) {
     zf_log_stack_warn(st, "Interface %s is not in low latency mode.\n",
                           sti->nic[nicno].if_name);
     zf_log_stack_warn(st, "Low latency mode is recommended for best "

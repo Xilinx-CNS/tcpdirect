@@ -269,7 +269,7 @@ zfrr_hw_filter_init_vlan(struct zf_stack* st, int nicno, int proto,
   struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
 
   if( proto == IPPROTO_UDP && is_multicast(laddr) &&
-      sti->nic[nicno].flags & ZF_RES_NIC_FLAG_VLAN_FILTERS &&
+      *zf_stack_res_nic_flags(st, nicno) & ZF_RES_NIC_FLAG_VLAN_FILTERS &&
       sti->sti_vlan_id != ZF_NO_VLAN ) {
     ef_filter_spec_set_vlan(spec, sti->sti_vlan_id);
   }

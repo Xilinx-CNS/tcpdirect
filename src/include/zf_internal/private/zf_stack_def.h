@@ -341,4 +341,9 @@ static inline const ef_vi* zf_stack_nic_tx_vi(const zf_stack* st, int nicno) {
 static inline bool zf_stack_nic_has_tx_vi(const zf_stack* st, int nicno) {
   return st->nic[nicno].tx_vi.inited; }
 
+static inline unsigned* zf_stack_res_nic_flags(zf_stack* st, int nicno) {
+  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
+  return &sti->nic[nicno].flags;
+}
+
 #endif /* __ZF_INTERNAL_STACK_DEF_H__ */
