@@ -243,10 +243,12 @@ int zf_stack_free(struct zf_stack* stack)
       unsigned rx_packets = ef_vi_receive_fill_level(&stack->nic[nicno].vi);
 
       /* For X3 ef_vi_transmit_fill_level and PIO states are bogus */
-      if( zf_stack_nic_tx_vi(stack, nicno)->nic_type.arch != EF_VI_ARCH_EFCT )
+      if( zf_stack_nic_tx_vi(stack, nicno)->nic_type.arch != EF_VI_ARCH_EFCT &&
+          zf_stack_nic_tx_vi(stack, nicno)->nic_type.arch != EF_VI_ARCH_EF10CT)
         pkts_accounted += tx_packets;
 
-      if( stack->nic[nicno].vi.nic_type.arch != EF_VI_ARCH_EFCT )
+      if( stack->nic[nicno].vi.nic_type.arch != EF_VI_ARCH_EFCT &&
+          stack->nic[nicno].vi.nic_type.arch != EF_VI_ARCH_EF10CT)
         pkts_accounted += rx_packets;
 
       zf_log_stack_trace(stack,

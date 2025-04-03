@@ -194,7 +194,8 @@ try_clean_tx_completions(struct zf_udp_tx* udp_tx)
   int iterations = 0;
 #endif
 
-  if( vi->nic_type.arch != EF_VI_ARCH_EFCT )
+  if( vi->nic_type.arch != EF_VI_ARCH_EFCT &&
+      vi->nic_type.arch != EF_VI_ARCH_EF10CT)
     return false;
   for( ; ; ) {
     ef_event ev;

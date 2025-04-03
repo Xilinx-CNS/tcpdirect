@@ -90,7 +90,8 @@ zf_stack_handle_rx(struct zf_stack* st, int nic, const char* iov_base,
   if( rx_prefix_len ){
     ef_vi* vi = &(st->nic[nic].vi);
 
-    if( vi->nic_type.arch != EF_VI_ARCH_EFCT ) {
+    if( vi->nic_type.arch != EF_VI_ARCH_EFCT &&
+        vi->nic_type.arch != EF_VI_ARCH_EF10CT ) {
       ef_eventq_state* evqs = &(vi->ep_state->evq);
 
       /* To overcome the restrictions that come with using ef_vi's timestamping
