@@ -165,11 +165,15 @@ int zf_delegated_send_complete(struct zft* ts, const struct iovec* iov,
      */
     already_acked = 0;
 
+    /* Cache snd_lbb before tcp_queue_sent_segments changes it, to
+     * ensure RTO is set on the correct sequence number 
+     */
+    uint32_t prev_snd_lbb = pcb->snd_lbb;
     /* Queue remaining packets on send queue */
     rc = tcp_queue_sent_segments(tcp, &pcb->sendq, &iov_temp, &pcb->snd_lbb);
     if( ZF_UNLIKELY(rc < 0) )
       goto out;
-    tcp_output_timers_common(zf_stack_from_zocket(tcp), tcp, pcb->snd_lbb);
+    tcp_output_timers_common(zf_stack_from_zocket(tcp), tcp, prev_snd_lbb);
 
     unsigned snd_buf_consumed = pcb->mss * rc;
     if( snd_buf_consumed > pcb->snd_buf )

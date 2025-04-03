@@ -1,5 +1,17 @@
-tcpdirect-9.0.1
+tcpdirect-9.0.2
 ---------------
+
+Changes:
+
+ON-15400: allow programatically setting log_level, log_format and log_file.
+ON-16143: remove redundant attributes function from zfsink test application
+ON-16265: set no-poison vi flag when ctpio_mode=sf-np
+ON-16273: avoid re-exporting onload symbols in static library
+ON-16327: improve RTT estimation for delegated sends
+
+
+tcpdirect-9.0.1.31
+------------------
 
 See corresponding Onload changelog for changes in OS support.
 

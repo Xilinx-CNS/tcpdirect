@@ -1,5 +1,12 @@
-TCPDirect-9.0.1
+TCPDirect-9.0.2
 ===============
+
+  This is a minor update release of TCPDirect to match Onload-9.0.2 and
+  including bug fixes since TCPDirect-9.0.1.31. See changelog for details.
+
+
+TCPDirect-9.0.1.31
+==================
 
   This is a minor update release of TCPDirect to match Onload-9.0.1 and
   including bug fixes since TCPDirect-9.0.0.21. See changelog for details.
