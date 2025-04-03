@@ -1,3 +1,12 @@
+tcpdirect-8.1.5
+---------------
+
+Changes:
+
+ON-16265: set no-poison vi flag when ctpio_mode=sf-np
+ON-16327: improve RTT estimation for delegated sends
+
+
 tcpdirect-8.1.4
 ---------------
 
