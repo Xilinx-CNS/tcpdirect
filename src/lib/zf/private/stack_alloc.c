@@ -243,7 +243,8 @@ static int zf_stack_init_pio(struct zf_stack_impl* sti, struct zf_attr* attr,
   struct zf_stack_res_nic* sti_nic = &sti->nic[nicno];
   ef_vi* vi = zf_stack_nic_tx_vi(st_nic);
 
-  if( st_nic->vi.nic_type.arch == EF_VI_ARCH_EFCT &&
+  if( (st_nic->vi.nic_type.arch == EF_VI_ARCH_EFCT ||
+       st_nic->vi.nic_type.arch == EF_VI_ARCH_EF10CT) &&
       attr->pio >= PIO_MUST_USE ) {
     zf_log_stack_warn(st,
                       "PIO not supported by efct interface but pio=%d. "
@@ -638,7 +639,8 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   if ( attr->rx_ring_max != 0 ) {
     /* For EFCT, we store the timestamp in a fake prefix when copying from
      * the shared rx buffer into our own packet buffer. */
-    if( st_nic->vi.nic_type.arch == EF_VI_ARCH_EFCT )
+    if( st_nic->vi.nic_type.arch == EF_VI_ARCH_EFCT ||
+        st_nic->vi.nic_type.arch == EF_VI_ARCH_EF10CT )
       st_nic->rx_prefix_len = ES_DZ_RX_PREFIX_SIZE;
     else
       st_nic->rx_prefix_len = ef_vi_receive_prefix_len(&st_nic->vi);

@@ -16,7 +16,8 @@ int enable_tx_warm(struct zf_tx* tx, zf_tx_warm_state* state)
   zf_log_stack_trace(st, "%s: TX warm enabled\n", __func__);
   char* ctpio_warm_buf = NULL;
   state->ctpio_warm_buf_id = PKT_INVALID;
-  if( vi->vi_flags & EF_VI_TX_CTPIO && vi->nic_type.arch != EF_VI_ARCH_EFCT ) {
+  if( vi->vi_flags & EF_VI_TX_CTPIO && vi->nic_type.arch != EF_VI_ARCH_EFCT &&
+      vi->nic_type.arch != EF_VI_ARCH_EF10CT) {
     int rc = zft_alloc_pkt(&st->pool, &state->ctpio_warm_buf_id);
     if( rc < 0 )
       return rc;
