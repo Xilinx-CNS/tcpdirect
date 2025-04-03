@@ -243,7 +243,7 @@ static int zf_stack_init_pio(struct zf_stack_impl* sti, struct zf_attr* attr,
   struct zf_stack_res_nic* sti_nic = &sti->nic[nicno];
   ef_vi* vi = zf_stack_nic_tx_vi(st_nic);
 
-  if( st_nic->vi.nic_type.arch == EF_VI_ARCH_EFCT &&
+  if( !(*zf_stack_res_nic_flags(st, nicno) & ZF_RES_NIC_FLAG_PIO) &&
       attr->pio >= PIO_MUST_USE ) {
     zf_log_stack_warn(st,
                       "PIO not supported by efct interface but pio=%d. "
@@ -494,6 +494,8 @@ static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
   unsigned* res_nic_flags = zf_stack_res_nic_flags(st, nicno);
   unsigned long vlan_filters;
   unsigned long variant;
+  unsigned long is_rx_ref;
+  unsigned long is_ctpio_only;
   ef_driver_handle dh = sti->nic[nicno].dh;
   ef_pd* pd = &sti->nic[nicno].pd;
   int rc;
@@ -534,6 +536,21 @@ static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
                               &vlan_filters);
   if( rc == 0 && vlan_filters != 0 )
     *res_nic_flags |= ZF_RES_NIC_FLAG_VLAN_FILTERS;
+
+  rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_RX_REF,
+                              &is_rx_ref);
+  if( rc == 0 && is_rx_ref != 0 )
+    *res_nic_flags |= ZF_RES_NIC_FLAG_RX_REF;
+
+  rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_CTPIO_ONLY,
+                              &is_ctpio_only);
+  if( rc == 0 && is_ctpio_only != 0 )
+    *res_nic_flags |= ZF_RES_NIC_FLAG_CTPIO_ONLY;
+
+  rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_PIO,
+                              &is_ctpio_only);
+  if( rc == 0 && is_ctpio_only != 0 )
+    *res_nic_flags |= ZF_RES_NIC_FLAG_PIO;
 
   return 0;
 }
@@ -638,9 +655,9 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   );
 
   if ( attr->rx_ring_max != 0 ) {
-    /* For EFCT, we store the timestamp in a fake prefix when copying from
-     * the shared rx buffer into our own packet buffer. */
-    if( st_nic->vi.nic_type.arch == EF_VI_ARCH_EFCT )
+    /* For RX_REF nics, we store the timestamp in a fake prefix when copying
+     * from the shared rx buffer into our own packet buffer. */
+    if( *res_nic_flags & ZF_RES_NIC_FLAG_RX_REF )
       st_nic->rx_prefix_len = ES_DZ_RX_PREFIX_SIZE;
     else
       st_nic->rx_prefix_len = ef_vi_receive_prefix_len(&st_nic->vi);
