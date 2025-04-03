@@ -85,8 +85,6 @@ $(UT_BINS): $(UT_BINDIR)/%: $(OBJ_CURRENT)/%.o
 $(UT_BINS): $(OBJ_CURRENT)/../tap/tap.o
 $(UT_BINS): $(ZF_STATIC_LIB) $(CIUL_LIB)
 
-LDFLAGS += -lciul1
-
 $(UT_BINS):
 	@mkdir -p $(dir $@)
 	$(CLINK) $^ -lm -lpthread -lrt -ldl -lstdc++ -o $@
