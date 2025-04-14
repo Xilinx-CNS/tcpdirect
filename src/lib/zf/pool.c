@@ -13,6 +13,7 @@
 
 #include <errno.h>
 #include <sys/mman.h>
+#include <linux/mman.h>
 
 #ifndef MAP_HUGETLB
 #define MAP_HUGETLB 0x40000u
@@ -84,7 +85,7 @@ int zf_pool_alloc(struct zf_pool_res* pi, struct zf_pool* pool,
    * to continue to use them as DMA buffers. */
   pool->pkt_bufs =
     (char*) zf_hal_mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
-                        MAP_ANONYMOUS | MAP_SHARED | MAP_HUGETLB, -1, 0);
+                        MAP_ANONYMOUS | MAP_SHARED | MAP_HUGETLB | MAP_HUGE_2MB, -1, 0);
   pi->pkt_bufs_mmap_len = alloc_size;
 
   /* Huge pages only */
