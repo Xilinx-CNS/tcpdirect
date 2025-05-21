@@ -325,6 +325,28 @@ ZF_ATTR(int, force_separate_tx_vi, beta, 0, NULL,
         "The feature is unstable."
         )
 
+ZF_ATTR(str, datapath_mode, stable, "express", NULL,
+        "zf_vi",
+
+        "Options for the datapath mode to use. Set to:\n"
+        " 'express' for low-latency mode;\n"
+        " 'enterprise' for full-feature mode;\n")
+
+ZF_ATTR(int, packet_buffer_mode, stable, 0, NULL,
+        "zf_vi",
+
+        "This option affects how DMA buffers are managed.  The default packet buffer \n"
+        "mode uses a limited hardware resource, and so restricts the total amount \n"
+        "of memory that can be used by TCPDirect for DMA. \n"
+        "\n"
+        " 2 - Physical address mode. Inherently unsafe; no address space "
+        "separation between different stacks or net driver packets."
+        "\n"
+        "1 - DEPRECATED was relevant only to adapters which are no longer supported."
+        "\n"
+        "0 - Virtual address mode."
+        "For unsafe physical address mode (2), you should tune\n"
+        "phys_mode_gid module parameter of the onload module.\n" )
 /**********************************************************************
  * zf_pool attributes.
  */

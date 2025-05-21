@@ -53,6 +53,13 @@
 #define CTPIO_MODE_SF_NP -1
 #define CTPIO_MODE_CT 64
 
+#define EXPRESS_MODE 0
+#define ENTERPRISE_MODE 1
+
+#define VIRT_BUFFER_MODE 0
+#define PHYS_BUFFER_MODE 2
+
+
 /* Replace this with std::ciel2 when available (proposed for C++20) */
 static unsigned ciel2(unsigned x) {
   zf_assert(x > 1);
@@ -289,6 +296,30 @@ static int zf_stack_init_pio(struct zf_stack_impl* sti, struct zf_attr* attr,
   return 0;
 }
 
+static int zf_stack_init_datapath_buffer_config(struct zf_stack_impl* sti,
+                                                struct zf_attr* attr,
+                                                int* datapath_mode,
+                                                int* buffer_mode
+                                                )
+{
+  zf_stack* st = &sti->st;
+  if( strcmp(attr->datapath_mode, "enterprise") ) {
+    *datapath_mode = ENTERPRISE_MODE;
+  } else if ( strcmp(attr->datapath_mode, "express") ) {
+    *datapath_mode = EXPRESS_MODE;
+  } else {
+    zf_log_stack_err(st, "Bad datapath_mode; must be one of: express or enterprise");
+    return -EINVAL;
+  }
+
+  if ( attr->packet_buffer_mode == PHYS_BUFFER_MODE || attr->packet_buffer_mode == VIRT_BUFFER_MODE ) {
+    *buffer_mode = attr->packet_buffer_mode;
+  } else {
+    zf_log_stack_err(st, "Bad packet_buffer_mode; must be one of: 0 or 2");
+    return -EINVAL;
+  }
+  return 0;
+}
 
 static int zf_stack_init_ctpio_stack_config(struct zf_stack_impl* sti,
                                             struct zf_attr* attr,
@@ -542,11 +573,13 @@ static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
 int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
                                 struct zf_attr* attr, int nicno,
                                 int ifindex, zf_if_info* if_cplane_info,
-                                unsigned vi_flags, int ctpio_mode)
+                                unsigned vi_flags, int ctpio_mode,
+                                int datapath_mode, int buffer_mode)
 {
   zf_stack* st = &sti->st;
   struct zf_stack_nic* st_nic = &st->nic[nicno];
   struct zf_stack_res_nic* sti_nic = &sti->nic[nicno];
+  ef_pd_flags pd_flags = EF_PD_DEFAULT;
   int rc;
 
   /* Open driver. */
@@ -565,7 +598,13 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   memcpy(&st_nic->mac_addr, &if_cplane_info->mac_addr,
          sizeof(st_nic->mac_addr));
 
-  rc = ef_pd_alloc(&sti_nic->pd, sti_nic->dh, sti_nic->ifindex_sfc, EF_PD_DEFAULT);
+  if ( datapath_mode == EXPRESS_MODE )
+    pd_flags |= EF_PD_LLCT;
+  
+  if ( buffer_mode == PHYS_BUFFER_MODE )
+    pd_flags |= EF_PD_PHYS_MODE;
+
+  rc = ef_pd_alloc(&sti_nic->pd, sti_nic->dh, sti_nic->ifindex_sfc, pd_flags);
   if( rc < 0 ) {
     zf_log_stack_err(st, "Failed to allocate PD (rc = %d)\n", rc);
     goto fail0;
@@ -813,6 +852,12 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   if( rc < 0 )
     goto fail2;
 
+  int datapath_mode;
+  int buffer_mode;
+  rc = zf_stack_init_datapath_buffer_config(sti, attr, &datapath_mode, &buffer_mode);
+  if( rc < 0 )
+    goto fail2;
+
   /* Query the nominated interface for the stack. */
   zf_if_info if_cplane_info;
   rc = zf_cplane_get_iface_info(ifindex, &if_cplane_info);
@@ -843,6 +888,9 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   sti->sti_rx_ring_refill_interval = attr->rx_ring_refill_interval;
   sti->sti_udp_ttl = attr->udp_ttl;
   sti->sti_log_level = attr->log_level;
+  sti->sti_datapath_mode = datapath_mode;
+  sti->sti_packet_buffer_mode = buffer_mode;
+
   strncpy(sti->sti_ctpio_mode, attr->ctpio_mode, 8);
   if( st->encap_type & EF_CP_ENCAP_F_VLAN )
     sti->sti_vlan_id = if_cplane_info.vlan_id;
@@ -895,7 +943,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
 
     rc = zf_stack_init_nic_resources(sti, attr, nicno, hwport_ifindex,
                                      &hwport_cplane_info, vi_flags,
-                                     ctpio_mode);
+                                     ctpio_mode, datapath_mode, buffer_mode);
     if( rc < 0 )
       goto fail3;
   }
