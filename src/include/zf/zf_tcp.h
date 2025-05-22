@@ -262,18 +262,23 @@ zft_addr_bind(struct zft_handle* handle, const struct sockaddr* laddr,
 ** If a specific local address has not been set via zft_addr_bind()
 ** then an appropriate one will be selected.
 **
-** This function does not block.  Functions that attempt to transfer data on
-** the zocket between zft_connect() and the successful establishment of the
-** underlying TCP connection will return an error.  Furthermore, failure of the
-** remote host to accept the connection will not be reported by this function,
-** but instead by any attempts to read from the zocket (or by zft_error()).  As
-** such, after calling zft_connect(), either
+** This function does not block to wait for a connection to be established, 
+** but can block up to the ARP reply timeout. Functions that attempt to
+** transfer data on the zocket between zft_connect() and the successful
+** establishment of the underlying TCP connection will return an error.
+** Furthermore, failure of the remote host to accept the connection will not
+** be reported by this function, but instead by any attempts to read from the
+** zocket (or by zft_error()).  As such, after calling zft_connect(), either
 **
 **  - read calls that fail with `-ENOTCONN` should be repeated after calling
 **    zf_reactor_perform(), or
 **  - the zocket should be polled for readiness using zf_muxer_wait().
 **
 ** This is analogous to the non-blocking connection model for POSIX sockets.
+**
+** This function will check for a route to the remote host. During the call it
+** may block up to the time set by 'arp_reply_timeout' while route resolution
+** takes place.
 **
 ** \return 0               Success.
 ** \return -EAFNOSUPPORT   raddr is not an AF_INET address
