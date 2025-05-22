@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <linux/mman.h>
 
 #include <ci/efhw/mc_driver_pcol.h>
 
@@ -36,7 +37,7 @@
 
 void* __alloc_huge(size_t size)
 {
-  unsigned mmap_flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_HUGETLB;
+  unsigned mmap_flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_HUGETLB | MAP_HUGE_2MB;
   auto ptr = (char*) mmap(NULL, size, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
   if( ptr == MAP_FAILED )
     return NULL;
