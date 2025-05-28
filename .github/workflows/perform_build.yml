@@ -3,9 +3,11 @@
 
 name: "perform_build"
 on:
+  workflow_dispatch:
   push:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize, reopened]
+
 jobs:
   perform_build_and_test:
     runs-on: ubuntu-latest
