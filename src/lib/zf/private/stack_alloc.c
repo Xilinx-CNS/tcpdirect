@@ -303,9 +303,9 @@ static int zf_stack_init_datapath_buffer_config(struct zf_stack_impl* sti,
                                                 )
 {
   zf_stack* st = &sti->st;
-  if( strcmp(attr->datapath_mode, "enterprise") ) {
+  if( ! strcmp(attr->datapath_mode, "enterprise") ) {
     *datapath_mode = ENTERPRISE_MODE;
-  } else if ( strcmp(attr->datapath_mode, "express") ) {
+  } else if ( ! strcmp(attr->datapath_mode, "express") ) {
     *datapath_mode = EXPRESS_MODE;
   } else {
     zf_log_stack_err(st, "Bad datapath_mode; must be one of: express or enterprise");
