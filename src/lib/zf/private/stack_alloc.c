@@ -599,10 +599,10 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
          sizeof(st_nic->mac_addr));
 
   if ( datapath_mode == EXPRESS_MODE )
-    pd_flags |= EF_PD_LLCT;
+    pd_flags = (ef_pd_flags)(pd_flags | EF_PD_LLCT);
   
   if ( buffer_mode == PHYS_BUFFER_MODE )
-    pd_flags |= EF_PD_PHYS_MODE;
+    pd_flags = (ef_pd_flags)(pd_flags | EF_PD_PHYS_MODE);
 
   rc = ef_pd_alloc(&sti_nic->pd, sti_nic->dh, sti_nic->ifindex_sfc, pd_flags);
   if( rc < 0 ) {
