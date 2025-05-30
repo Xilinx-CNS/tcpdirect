@@ -44,8 +44,8 @@ void dump_attributes(SkewPointer<zf_stack_impl> stimpl)
   zf_dump("rx_timestamping=%d\n", stimpl->sti_rx_timestamping);  
   zf_dump("ctpio=%d\n", stimpl->sti_ctpio);
   zf_dump("ctpio_mode=%s\n", stimpl->sti_ctpio_mode);
-  zf_dump("datapath_mode=%d\n", stimpl->sti_datapath_mode);
-  zf_dump("packet_buffer_mode=%d\n", stimpl->sti_packet_buffer_mode);
+  zf_dump("rx_datapath_mode=%d\n", stimpl->sti_rx_datapath_mode);
+  zf_dump("phys_addr_mode=%d\n", stimpl->sti_phys_addr_mode);
   zf_dump("pio=%d\n", stimpl->sti_pio);
   zf_dump("reactor_spin_count=%d\n", stimpl->sti_reactor_spin_count);
   zf_dump("tcp_timewait_ms=%d\n", stimpl->sti_tcp_timewait_ms);  
