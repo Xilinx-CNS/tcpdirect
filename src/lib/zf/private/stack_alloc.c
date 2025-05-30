@@ -938,7 +938,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
 
     rc = zf_stack_init_nic_resources(sti, attr, nicno, hwport_ifindex,
                                      &hwport_cplane_info, vi_flags,
-                                     ctpio_mode, rx_datapath_mode, buffer_mode);
+                                     ctpio_mode, rx_datapath_mode, phys_addr_mode);
     if( rc < 0 )
       goto fail3;
   }
