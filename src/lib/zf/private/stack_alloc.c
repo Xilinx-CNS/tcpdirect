@@ -307,8 +307,12 @@ static int zf_stack_init_datapath_phys_addr_mode(struct zf_stack_impl* sti,
     return -EINVAL;
   }
 
-  if ( attr->phys_attr_mode )
-    *phys_addr_mode = attr->phys_attr_mode;
+  if ( attr->phys_addr_mode < 0 || attr->phys_addr_mode > 1 ) {
+    zf_log_stack_err(st, "Bad phys_addr_mode; must be either 1 or 0");
+    return -EINVAL;
+  }
+
+  *phys_addr_mode = (attr->phys_addr_mode > 0);
   return 0;
 }
 

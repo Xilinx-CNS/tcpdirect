@@ -332,17 +332,17 @@ ZF_ATTR(str, rx_datapath_mode, stable, "express", NULL,
         " 'express' for low-latency mode;\n"
         " 'enterprise' for full-feature mode;\n")
 
-ZF_ATTR(bool, phys_addr_mode, stable, false, NULL,
+ZF_ATTR(int, phys_addr_mode, stable, 0, NULL,
         "zf_vi",
 
         "This option affects how DMA buffers are managed.  The default packet buffer \n"
         "mode uses a limited hardware resource, and so restricts the total amount \n"
         "of memory that can be used by TCPDirect for DMA. \n"
         "\n"
-        " True - Physical address mode. Inherently unsafe; no address space "
+        " 1 - Physical address mode. Inherently unsafe; no address space "
         "separation between different stacks or net driver packets."
         "\n"
-        "False - Virtual address mode."
+        "0 - Virtual address mode."
         "For unsafe physical address mode (True), you should tune\n"
         "phys_mode_gid module parameter of the onload module.\n" )
 /**********************************************************************
