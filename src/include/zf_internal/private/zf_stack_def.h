@@ -281,7 +281,7 @@ struct zf_stack_impl {
   int sti_reactor_spin_count;
   int sti_rx_ring_refill_interval;
   int sti_udp_ttl;
-  int sti_rx_datapath_mode;
+  int sti_rx_datapath;
   int sti_phys_addr_mode;
   uint64_t sti_log_level;
   

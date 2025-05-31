@@ -325,7 +325,7 @@ ZF_ATTR(int, force_separate_tx_vi, beta, 0, NULL,
         "The feature is unstable."
         )
 
-ZF_ATTR(str, rx_datapath_mode, stable, "express", NULL,
+ZF_ATTR(str, rx_datapath, stable, "express", NULL,
         "zf_vi",
 
         "Options for the rx_datapath mode to use. Set to:\n"

@@ -294,16 +294,16 @@ static int zf_stack_init_pio(struct zf_stack_impl* sti, struct zf_attr* attr,
 
 static int zf_stack_init_datapath_phys_addr_mode(struct zf_stack_impl* sti,
                                                  struct zf_attr* attr,
-                                                 int* rx_datapath_mode,
+                                                 int* rx_datapath,
                                                  bool* phys_addr_mode)
 {
   zf_stack* st = &sti->st;
-  if( ! strcmp(attr->rx_datapath_mode, "enterprise") ) {
-    *rx_datapath_mode = ENTERPRISE_MODE;
-  } else if ( ! strcmp(attr->rx_datapath_mode, "express") ) {
-    *rx_datapath_mode = EXPRESS_MODE;
+  if( ! strcmp(attr->rx_datapath, "enterprise") ) {
+    *rx_datapath = ENTERPRISE_MODE;
+  } else if ( ! strcmp(attr->rx_datapath, "express") ) {
+    *rx_datapath = EXPRESS_MODE;
   } else {
-    zf_log_stack_err(st, "Bad rx_datapath_mode; must be one of: express or enterprise");
+    zf_log_stack_err(st, "Bad rx_datapath; must be one of: express or enterprise");
     return -EINVAL;
   }
 
@@ -569,7 +569,7 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
                                 struct zf_attr* attr, int nicno,
                                 int ifindex, zf_if_info* if_cplane_info,
                                 unsigned vi_flags, int ctpio_mode,
-                                int rx_datapath_mode, bool phys_addr_mode)
+                                int rx_datapath, bool phys_addr_mode)
 {
   zf_stack* st = &sti->st;
   struct zf_stack_nic* st_nic = &st->nic[nicno];
@@ -593,7 +593,7 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   memcpy(&st_nic->mac_addr, &if_cplane_info->mac_addr,
          sizeof(st_nic->mac_addr));
 
-  if ( rx_datapath_mode == EXPRESS_MODE )
+  if ( rx_datapath == EXPRESS_MODE )
     pd_flags = (ef_pd_flags)(pd_flags | EF_PD_EXPRESS);
   
   if ( phys_addr_mode )
@@ -847,9 +847,9 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   if( rc < 0 )
     goto fail2;
 
-  int rx_datapath_mode;
+  int rx_datapath;
   bool phys_addr_mode;
-  rc = zf_stack_init_datapath_phys_addr_mode(sti, attr, &rx_datapath_mode, &phys_addr_mode);
+  rc = zf_stack_init_datapath_phys_addr_mode(sti, attr, &rx_datapath, &phys_addr_mode);
   if( rc < 0 )
     goto fail2;
 
@@ -883,7 +883,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   sti->sti_rx_ring_refill_interval = attr->rx_ring_refill_interval;
   sti->sti_udp_ttl = attr->udp_ttl;
   sti->sti_log_level = attr->log_level;
-  sti->sti_rx_datapath_mode = rx_datapath_mode;
+  sti->sti_rx_datapath = rx_datapath;
   sti->sti_phys_addr_mode = phys_addr_mode;
 
   strncpy(sti->sti_ctpio_mode, attr->ctpio_mode, 8);
@@ -938,7 +938,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
 
     rc = zf_stack_init_nic_resources(sti, attr, nicno, hwport_ifindex,
                                      &hwport_cplane_info, vi_flags,
-                                     ctpio_mode, rx_datapath_mode, phys_addr_mode);
+                                     ctpio_mode, rx_datapath, phys_addr_mode);
     if( rc < 0 )
       goto fail3;
   }
