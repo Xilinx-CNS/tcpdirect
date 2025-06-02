@@ -328,23 +328,24 @@ ZF_ATTR(int, force_separate_tx_vi, beta, 0, NULL,
 ZF_ATTR(str, rx_datapath, stable, "express", NULL,
         "zf_vi",
 
-        "Options for the rx_datapath mode to use. Set to:\n"
-        " 'express' for low-latency mode;\n"
-        " 'enterprise' for full-feature mode;\n")
+        "Options for the rx_datapath mode to use where multiple datapaths are available. \n"
+        "Valid options are:\n"
+        " 'express'\n"
+        " 'enterprise'\n")
 
 ZF_ATTR(int, phys_address_mode, stable, 0, NULL,
         "zf_vi",
 
-        "This option affects how DMA buffers are managed.  The default packet buffer \n"
-        "mode uses a limited hardware resource, and so restricts the total amount \n"
-        "of memory that can be used by TCPDirect for DMA. \n"
+        "This option enables physical addressing mode.  This makes the DMA mapped \n"
+        "addresses directly visible to user space, which should only be used where \n"
+        "applications are trusted. The sfc_char module parameter phys_mode_gid can \n"
+        "be used to control which users are able to use physical addressing mode. \n"
         "\n"
-        " 1 - Physical address mode. Inherently unsafe; no address space "
-        "separation between different stacks or net driver packets."
+        " 1 - Enable physical addressing mode. Inherently unsafe; no address space \n"
+        "     separation between different stacks or net driver packets.\n"
         "\n"
-        "0 - Virtual address mode."
-        "For unsafe physical address mode (True), you should tune\n"
-        "phys_mode_gid module parameter of the onload module.\n" )
+        "0 - Don't enable physical addressing mode. User space sees virtual addresses \n"
+        "    which are translated by hardware or in the kernel.")
 /**********************************************************************
  * zf_pool attributes.
  */
