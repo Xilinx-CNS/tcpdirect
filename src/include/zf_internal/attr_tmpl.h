@@ -332,7 +332,7 @@ ZF_ATTR(str, rx_datapath, stable, "express", NULL,
         " 'express' for low-latency mode;\n"
         " 'enterprise' for full-feature mode;\n")
 
-ZF_ATTR(int, phys_addr_mode, stable, 0, NULL,
+ZF_ATTR(int, phys_address_mode, stable, 0, NULL,
         "zf_vi",
 
         "This option affects how DMA buffers are managed.  The default packet buffer \n"

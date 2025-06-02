@@ -292,10 +292,10 @@ static int zf_stack_init_pio(struct zf_stack_impl* sti, struct zf_attr* attr,
   return 0;
 }
 
-static int zf_stack_init_datapath_phys_addr_mode(struct zf_stack_impl* sti,
+static int zf_stack_init_datapath_phys_address_mode(struct zf_stack_impl* sti,
                                                  struct zf_attr* attr,
                                                  int* rx_datapath,
-                                                 bool* phys_addr_mode)
+                                                 bool* phys_address_mode)
 {
   zf_stack* st = &sti->st;
   if( ! strcmp(attr->rx_datapath, "enterprise") ) {
@@ -307,12 +307,12 @@ static int zf_stack_init_datapath_phys_addr_mode(struct zf_stack_impl* sti,
     return -EINVAL;
   }
 
-  if ( attr->phys_addr_mode < 0 || attr->phys_addr_mode > 1 ) {
-    zf_log_stack_err(st, "Bad phys_addr_mode; must be either 1 or 0");
+  if ( attr->phys_address_mode < 0 || attr->phys_address_mode > 1 ) {
+    zf_log_stack_err(st, "Bad phys_address_mode; must be either 1 or 0");
     return -EINVAL;
   }
 
-  *phys_addr_mode = (attr->phys_addr_mode > 0);
+  *phys_address_mode = (attr->phys_address_mode > 0);
   return 0;
 }
 
@@ -569,7 +569,7 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
                                 struct zf_attr* attr, int nicno,
                                 int ifindex, zf_if_info* if_cplane_info,
                                 unsigned vi_flags, int ctpio_mode,
-                                int rx_datapath, bool phys_addr_mode)
+                                int rx_datapath, bool phys_address_mode)
 {
   zf_stack* st = &sti->st;
   struct zf_stack_nic* st_nic = &st->nic[nicno];
@@ -596,7 +596,7 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   if ( rx_datapath == EXPRESS_MODE )
     pd_flags = (ef_pd_flags)(pd_flags | EF_PD_EXPRESS);
   
-  if ( phys_addr_mode )
+  if ( phys_address_mode )
     pd_flags = (ef_pd_flags)(pd_flags | EF_PD_PHYS_MODE);
 
   rc = ef_pd_alloc(&sti_nic->pd, sti_nic->dh, sti_nic->ifindex_sfc, pd_flags);
@@ -848,8 +848,8 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
     goto fail2;
 
   int rx_datapath;
-  bool phys_addr_mode;
-  rc = zf_stack_init_datapath_phys_addr_mode(sti, attr, &rx_datapath, &phys_addr_mode);
+  bool phys_address_mode;
+  rc = zf_stack_init_datapath_phys_address_mode(sti, attr, &rx_datapath, &phys_address_mode);
   if( rc < 0 )
     goto fail2;
 
@@ -884,7 +884,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   sti->sti_udp_ttl = attr->udp_ttl;
   sti->sti_log_level = attr->log_level;
   sti->sti_rx_datapath = rx_datapath;
-  sti->sti_phys_addr_mode = phys_addr_mode;
+  sti->sti_phys_address_mode = phys_address_mode;
 
   strncpy(sti->sti_ctpio_mode, attr->ctpio_mode, 8);
   if( st->encap_type & EF_CP_ENCAP_F_VLAN )
@@ -938,7 +938,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
 
     rc = zf_stack_init_nic_resources(sti, attr, nicno, hwport_ifindex,
                                      &hwport_cplane_info, vi_flags,
-                                     ctpio_mode, rx_datapath, phys_addr_mode);
+                                     ctpio_mode, rx_datapath, phys_address_mode);
     if( rc < 0 )
       goto fail3;
   }
