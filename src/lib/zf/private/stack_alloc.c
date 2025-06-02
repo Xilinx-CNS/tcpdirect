@@ -312,6 +312,7 @@ static int zf_stack_init_phys_address_mode(struct zf_stack_impl* sti,
                                            struct zf_attr* attr,
                                            bool* phys_address_mode)
 {
+  zf_stack* st = &sti->st;
   if ( attr->phys_address_mode < 0 || attr->phys_address_mode > 1 ) {
     zf_log_stack_err(st, "Bad phys_address_mode; must be either 1 or 0");
     return -EINVAL;
@@ -604,7 +605,7 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
              sti_nic->dh, ifindex, (ef_pd_flags)(pd_flags | EF_PD_EXPRESS),
              EF_VI_CAP_EXTRA_DATAPATHS, &capability_val
            );
-      if ( rc == 0 && (capability_val & EF_VI_EXTRA_DATAPATH_LLCT) )
+      if ( rc == 0 && (capability_val & EF_VI_EXTRA_DATAPATH_EXPRESS) )
         pd_flags = (ef_pd_flags)(pd_flags | EF_PD_EXPRESS);
   }
 
