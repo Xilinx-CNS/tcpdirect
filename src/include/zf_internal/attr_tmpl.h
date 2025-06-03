@@ -325,6 +325,27 @@ ZF_ATTR(int, force_separate_tx_vi, beta, 0, NULL,
         "The feature is unstable."
         )
 
+ZF_ATTR(str, rx_datapath, stable, "express", NULL,
+        "zf_vi",
+
+        "Options for the rx_datapath mode to use where multiple datapaths are available. \n"
+        "Valid options are:\n"
+        " 'express'\n"
+        " 'enterprise'\n")
+
+ZF_ATTR(int, phys_address_mode, stable, 0, NULL,
+        "zf_vi",
+
+        "This option enables physical addressing mode.  This makes the DMA mapped \n"
+        "addresses directly visible to user space, which should only be used where \n"
+        "applications are trusted. The sfc_char module parameter phys_mode_gid can \n"
+        "be used to control which users are able to use physical addressing mode. \n"
+        "\n"
+        " 1 - Enable physical addressing mode. Inherently unsafe; no address space \n"
+        "     separation between different stacks or net driver packets.\n"
+        "\n"
+        "0 - Don't enable physical addressing mode. User space sees virtual addresses \n"
+        "    which are translated by hardware or in the kernel.")
 /**********************************************************************
  * zf_pool attributes.
  */

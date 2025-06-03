@@ -289,6 +289,35 @@ static int zf_stack_init_pio(struct zf_stack_impl* sti, struct zf_attr* attr,
   return 0;
 }
 
+static int zf_stack_init_datapath(struct zf_stack_impl* sti,
+                                  struct zf_attr* attr,
+                                  int* rx_datapath)
+{
+  zf_stack* st = &sti->st;
+  if( ! strcmp(attr->rx_datapath, "enterprise") ) {
+    *rx_datapath = ENTERPRISE_MODE;
+  } else if ( ! strcmp(attr->rx_datapath, "express") ) {
+    *rx_datapath = EXPRESS_MODE;
+  } else {
+    zf_log_stack_err(st, "Bad rx_datapath; must be one of: express or enterprise");
+    return -EINVAL;
+  }
+  return 0;
+}
+
+static int zf_stack_init_phys_address_mode(struct zf_stack_impl* sti,
+                                           struct zf_attr* attr,
+                                           bool* phys_address_mode)
+{
+  zf_stack* st = &sti->st;
+  if ( attr->phys_address_mode < 0 || attr->phys_address_mode > 1 ) {
+    zf_log_stack_err(st, "Bad phys_address_mode; must be either 1 or 0");
+    return -EINVAL;
+  }
+
+  *phys_address_mode = (attr->phys_address_mode > 0);
+  return 0;
+}
 
 static int zf_stack_init_ctpio_stack_config(struct zf_stack_impl* sti,
                                             struct zf_attr* attr,
@@ -542,12 +571,15 @@ static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
 int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
                                 struct zf_attr* attr, int nicno,
                                 int ifindex, zf_if_info* if_cplane_info,
-                                unsigned vi_flags, int ctpio_mode)
+                                unsigned vi_flags, int ctpio_mode,
+                                int rx_datapath, bool phys_address_mode)
 {
   zf_stack* st = &sti->st;
   struct zf_stack_nic* st_nic = &st->nic[nicno];
   struct zf_stack_res_nic* sti_nic = &sti->nic[nicno];
+  ef_pd_flags pd_flags = EF_PD_DEFAULT;
   int rc;
+  unsigned long capability_val;
 
   /* Open driver. */
   rc = ef_driver_open(&sti_nic->dh);
@@ -565,7 +597,25 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   memcpy(&st_nic->mac_addr, &if_cplane_info->mac_addr,
          sizeof(st_nic->mac_addr));
 
-  rc = ef_pd_alloc(&sti_nic->pd, sti_nic->dh, sti_nic->ifindex_sfc, EF_PD_DEFAULT);
+  if ( rx_datapath == EXPRESS_MODE ) {
+      rc = ef_vi_capabilities_get_from_pd_flags(
+             sti_nic->dh, ifindex, (ef_pd_flags)(pd_flags | EF_PD_EXPRESS),
+             EF_VI_CAP_EXTRA_DATAPATHS, &capability_val
+           );
+      if ( rc == 0 && (capability_val & EF_VI_EXTRA_DATAPATH_EXPRESS) )
+        pd_flags = (ef_pd_flags)(pd_flags | EF_PD_EXPRESS);
+  }
+
+  if ( phys_address_mode ) {
+      rc = ef_vi_capabilities_get_from_pd_flags(
+             sti_nic->dh, ifindex, (ef_pd_flags)(pd_flags | EF_PD_PHYS_MODE),
+             EF_VI_CAP_PHYS_MODE, &capability_val
+           );
+      if ( rc == 0 && (capability_val & EF_VI_CAP_PHYS_MODE) )
+        pd_flags = (ef_pd_flags)(pd_flags | EF_PD_PHYS_MODE);
+  }
+
+  rc = ef_pd_alloc(&sti_nic->pd, sti_nic->dh, sti_nic->ifindex_sfc, pd_flags);
   if( rc < 0 ) {
     zf_log_stack_err(st, "Failed to allocate PD (rc = %d)\n", rc);
     goto fail0;
@@ -813,6 +863,16 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   if( rc < 0 )
     goto fail2;
 
+  int rx_datapath;
+  rc = zf_stack_init_datapath(sti, attr, &rx_datapath);
+  if( rc < 0 )
+    goto fail2;
+    
+  bool phys_address_mode;
+  rc = zf_stack_init_phys_address_mode(sti, attr, &phys_address_mode);
+  if( rc < 0 )
+    goto fail2;
+
   /* Query the nominated interface for the stack. */
   zf_if_info if_cplane_info;
   rc = zf_cplane_get_iface_info(ifindex, &if_cplane_info);
@@ -843,6 +903,9 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   sti->sti_rx_ring_refill_interval = attr->rx_ring_refill_interval;
   sti->sti_udp_ttl = attr->udp_ttl;
   sti->sti_log_level = attr->log_level;
+  sti->sti_rx_datapath = rx_datapath;
+  sti->sti_phys_address_mode = phys_address_mode;
+
   strncpy(sti->sti_ctpio_mode, attr->ctpio_mode, 8);
   if( st->encap_type & EF_CP_ENCAP_F_VLAN )
     sti->sti_vlan_id = if_cplane_info.vlan_id;
@@ -895,7 +958,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
 
     rc = zf_stack_init_nic_resources(sti, attr, nicno, hwport_ifindex,
                                      &hwport_cplane_info, vi_flags,
-                                     ctpio_mode);
+                                     ctpio_mode, rx_datapath, phys_address_mode);
     if( rc < 0 )
       goto fail3;
   }
