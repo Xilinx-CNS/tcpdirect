@@ -53,9 +53,6 @@
 #define CTPIO_MODE_SF_NP -1
 #define CTPIO_MODE_CT 64
 
-#define EXPRESS_MODE 0
-#define ENTERPRISE_MODE 1
-
 /* Replace this with std::ciel2 when available (proposed for C++20) */
 static unsigned ciel2(unsigned x) {
   zf_assert(x > 1);

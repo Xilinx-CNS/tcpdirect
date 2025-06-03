@@ -182,6 +182,9 @@ struct zf_stack {
 #define ZF_RES_NIC_FLAG_RX_LL        0x2
 #define ZF_RES_NIC_FLAG_TX_LL        0x4
 
+#define EXPRESS_MODE 0
+#define ENTERPRISE_MODE 1
+
 #include <onload/version.h>
 #define ZF_VERSION_LENGTH_MAX OO_VER_STR_LEN
 
