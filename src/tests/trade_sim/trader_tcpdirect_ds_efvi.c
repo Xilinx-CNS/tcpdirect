@@ -363,18 +363,26 @@ static void ef_vi_init(struct client_state* cs, const char* interface)
   unsigned long capability_val;
   int ifindex;
   enum ef_vi_flags vi_flags = EF_VI_TX_CTPIO;
+  enum ef_pd_flags pd_flags = EF_PD_DEFAULT;
+
+  TEST( parse_interface(interface, &ifindex) );
   if( cfg_ctpio_no_poison )
     vi_flags |= EF_VI_TX_CTPIO_NO_POISON;
 
   cs->pio_pkt_len = 0;
   cs->pio_in_use = ! cfg_delegated;
   TRY( ef_driver_open(&(cs->dh)) );
-  TRY( ef_pd_alloc_by_name(&(cs->pd), cs->dh, interface, EF_PD_DEFAULT) );
+  if( ef_vi_capabilities_get(cs->dh, ifindex, EF_VI_CAP_EXTRA_DATAPATHS,
+			     &capability_val) == 0 &&
+      (capability_val & EF_VI_EXTRA_DATAPATH_EXPRESS) ) {
+    fprintf(stderr, "Using Express datapath\n");
+    pd_flags |= EF_PD_EXPRESS; /* Prefer Express datapath if available */
+  }
+  TRY( ef_pd_alloc_by_name(&(cs->pd), cs->dh, interface, pd_flags) );
 
   /* If NIC supports CTPIO use it */
-  TEST( parse_interface(interface, &ifindex) );
   if( ! cfg_pio_only &&
-      ef_vi_capabilities_get(cs->dh, ifindex, EF_VI_CAP_CTPIO,
+      ef_pd_capabilities_get(cs->dh, &(cs->pd), cs->dh, EF_VI_CAP_CTPIO,
                              &capability_val) == 0 && capability_val ) {
     if( ef_vi_alloc_from_pd(&(cs->vi), cs->dh, &(cs->pd), cs->dh,
                             -1, 0, -1, NULL, -1, vi_flags) == 0 ) {
