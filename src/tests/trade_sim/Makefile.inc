@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: (c) Advanced Micro Devices, Inc.
-TEST_APPS := trader_tcpdirect_ds_efvi trader_tcpdirect_ds_efvi_ct_rx
+TEST_APPS := trader_tcpdirect_ds_efvi
 
 TEST_OBJS := $(TEST_APPS:%=$(OBJ_CURRENT)/%.o)
 
