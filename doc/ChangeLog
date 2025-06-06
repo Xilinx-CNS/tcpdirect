@@ -8,6 +8,7 @@ ON-16143: remove redundant attributes function from zfsink test application
 ON-16265: set no-poison vi flag when ctpio_mode=sf-np
 ON-16273: avoid re-exporting onload symbols in static library
 ON-16327: improve RTT estimation for delegated sends
+ON-16341: force 2MB huge page allocation to run on 1GB default systems
 
 
 tcpdirect-9.0.1.31
