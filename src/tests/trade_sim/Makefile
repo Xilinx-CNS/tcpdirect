@@ -24,7 +24,7 @@ ZF_STATIC_LIB := -lonload_zf_static
 
 %.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(ZF_CFLAGS_COMPONENT) $(CFLAGS) $(CFLAGS_TOP) -c $< -o $@
+	$(CC) $(ZF_CFLAGS_COMPONENT) $(CXXFLAGS) $(CFLAGS_TOP) -c $< -o $@
 
 include Makefile.inc
 
