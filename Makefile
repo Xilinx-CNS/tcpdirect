@@ -73,7 +73,7 @@ endif
 # Generic rule to build most object files
 $(OBJ_ROOT)/%.o: $(SRC_ROOT)/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(ZF_CFLAGS_COMPONENT) $(CFLAGS) $(ZF_CFLAGS_TOP) -c $< -o $@
+	$(CC) $(ZF_CFLAGS_COMPONENT) $(CXXFLAGS) $(ZF_CFLAGS_TOP) -c $< -o $@
 
 
 ifeq ($(ZF_DEVEL),1)
