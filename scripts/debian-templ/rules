@@ -7,7 +7,10 @@
 # dpkg-buildflags sets link time optimisation by default. Because we want to
 # finish before the heat death of the universe, we disable the optimisation for
 # this package.
-export DEB_BUILD_MAINT_OPTIONS=optimize=-lto
+#
+# bug-implicit-func filters out -Werror=implicit-function-declaration
+# Revisit on evaluation of ON-16681 
+export DEB_BUILD_MAINT_OPTIONS=optimize=-lto qa=-bug-implicit-func
 
 %:
 	dh $@
