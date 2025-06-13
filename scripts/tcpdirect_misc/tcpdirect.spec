@@ -44,6 +44,8 @@ mkdir -p $RPM_BUILD_ROOT
 %setup -n %{name}-%{pkgversion}
 
 %build
+CXXFLAGS="%{optflags}"
+
 scripts/zf_mkdist --version "%{pkgversion}" --name tcpdirect "%{?onload_tarball:%onload_tarball}"
 
 tar -xzvf build/tcpdirect-"%{pkgversion}".tgz -C "${RPM_BUILD_ROOT}"
