@@ -490,3 +490,11 @@ zf_stack_query_feature(struct zf_stack* stack, enum zf_stack_feature feature)
   return -ENOENT;
 
 }
+
+int zf_set_reset_callback(struct zf_stack* st, void (*func)(void*), void* arg)
+{
+  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
+  sti->reset_callback = func;
+  sti->reset_callback_arg = arg;
+  return 0;
+}
