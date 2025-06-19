@@ -11,6 +11,7 @@
 
 %define _unpackaged_files_terminate_build 0
 %{!?pkgversion: %global pkgversion 9.0.0}
+%global _lto_cflags %{nil}
 
 Name:           tcpdirect
 Version:        %{pkgversion}
