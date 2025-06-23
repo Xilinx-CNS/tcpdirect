@@ -5,6 +5,17 @@ TCPDirect-9.0.2
   including bug fixes since TCPDirect-9.0.1.31. See changelog for details.
 
 
+Known issue - extra rpmbuild option required for RHEL 10
+--------------------------------------------------------
+
+  Building TCP Direct for RHEL 10 requires an option to be added to the
+  rpmbuild command to disable link time optimization, otherwise the
+  build will never finish:
+
+    rpmbuild --rebuild --define "_lto_cflags %{nil}" \
+             tcpdirect-9.0.2.47-1.src.rpm
+
+
 TCPDirect-9.0.1.31
 ==================
 
