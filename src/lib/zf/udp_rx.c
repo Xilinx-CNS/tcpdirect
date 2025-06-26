@@ -188,7 +188,7 @@ zf_pftf_recv_wait(zf_stack* st, zf_udp_rx* udp_rx, zfur_msg* restrict msg, int f
 }
 
 
-ZF_HOT extern void
+extern void
 zfur_zc_recv(struct zfur *us, struct zfur_msg* restrict msg, int flags)
 {
   zf_stack* stack = zf_stack_from_zocket(us);

@@ -77,7 +77,7 @@ zf_invalidate_timestamp(char* iov_base)
  * positive otherwise.  This function might be called with a packet from the
  * future, but we gurantee that its event has been processed by the time we
  * return. */
-ZF_HOT int
+int
 zf_stack_handle_rx(struct zf_stack* st, int nic, const char* iov_base,
                    pkt_id id, uint16_t len)
 {
@@ -169,7 +169,7 @@ zf_stack_handle_rx(struct zf_stack* st, int nic, const char* iov_base,
 }
 
 /* Clone of zf_stack_handle_rx that is optimized for overlapped receives */
-ZF_HOT int
+int
 zf_stack_handle_rx_pftf(struct zf_stack* st, int nic, const char* iov_base,
                         pkt_id id)
 {

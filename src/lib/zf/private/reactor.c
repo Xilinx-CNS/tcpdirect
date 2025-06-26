@@ -187,7 +187,7 @@ efct_pkt_memcpy(void* dst, const void* src, size_t n)
 
 
 /* returns 1 if something interesting has happened */
-ZF_HOT int
+int
 zf_reactor_process_event(struct zf_stack* st, int nic, ef_vi* vi, ef_event* ev)
 {
   zf_assert(st);
@@ -303,7 +303,7 @@ efct_copy_62(void* dst, const void* src)
  *
  *  <0 - an error occurred 
  */
-ZF_HOT int
+int
 zf_reactor_wait_for_rx_event(struct zf_stack* stack, int nic, pkt_id packet_id,
                              uint16_t len)
 {
@@ -456,7 +456,7 @@ static int zf_reactor_process_tx_vi(struct zf_stack* st, int nic, ef_vi* vi)
  *   unavoidable while low number of pkt buffers in use will result in smaller
  *   working set.
  */
-ZF_HOT static int
+static int
 __zf_reactor_perform(struct zf_stack* st, unsigned spin_cnt)
 {
   int rc = st->pftf.event_occurred_carry;
@@ -618,12 +618,12 @@ __zf_reactor_perform(struct zf_stack* st, unsigned spin_cnt)
   return rc;
 }
 
-ZF_HOT int zf_reactor_perform(struct zf_stack* st)
+int zf_reactor_perform(struct zf_stack* st)
 {
   return __zf_reactor_perform(st, st->reactor_spin_count);
 }
 
-ZF_HOT int
+int
 zf_reactor_perform_attr(struct zf_stack* st, const struct zf_attr* attr)
 {
   return __zf_reactor_perform(st, attr->reactor_spin_count);

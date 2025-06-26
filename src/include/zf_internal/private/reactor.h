@@ -20,13 +20,13 @@
 
 constexpr int ZF_REACTOR_PFTF = 2;
 
-extern ZF_HOT int
+extern int
 zf_reactor_wait_for_rx_event(struct zf_stack*, int nic, pkt_id packet_id,
                              uint16_t frame_len);
 
 extern ZF_HOT int zf_pftf_wait(zf_stack* st, unsigned len);
 
-extern ZF_HOT int zf_reactor_process_event(struct zf_stack* st, int nic,
+extern int zf_reactor_process_event(struct zf_stack* st, int nic,
                                            ef_vi* vi, ef_event* ev);
 
 #endif /* __ZF_INTERNAL_REACTOR_H__ */

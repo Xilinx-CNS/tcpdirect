@@ -49,7 +49,7 @@ struct zf_stack;
 **
 ** \see zf_reactor_perform_attr() zf_muxer_wait()
 */
-ZF_LIBENTRY ZF_HOT int
+ZF_LIBENTRY int
 zf_reactor_perform(struct zf_stack* st);
 
 /*! \brief Process events on a stack, with overridden attributes.
@@ -93,7 +93,7 @@ zf_reactor_perform(struct zf_stack* st);
 **
 ** \see zf_reactor_perform() zf_muxer_wait()
 */
-ZF_LIBENTRY ZF_HOT int
+ZF_LIBENTRY int
 zf_reactor_perform_attr(struct zf_stack* st, const struct zf_attr* attr);
 
 /*! \brief Determine whether a stack has work pending.

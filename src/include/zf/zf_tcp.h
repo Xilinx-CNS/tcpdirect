@@ -438,7 +438,7 @@ struct zft_msg {
 ** The api supports looking into partially received frames.
 ** See \ref using_overlapped_receive.
 */
-ZF_LIBENTRY ZF_HOT void
+ZF_LIBENTRY void
 zft_zc_recv(struct zft *ts,
             struct zft_msg* msg,
             int flags);

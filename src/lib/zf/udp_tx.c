@@ -300,7 +300,7 @@ zfut_get_mss(struct zfut *us)
 }
 
 
-ZF_HOT int
+int
 zfut_send(struct zfut* restrict us,
           const struct iovec* restrict iov, int iov_cnt,
           int flags)

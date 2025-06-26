@@ -92,7 +92,7 @@ zf_stack_udp_pop_deferred_rx(struct zf_stack* stack)
  *
  *  <0 - an error occurred 
  */
-ZF_HOT static inline int
+static inline int
 zf_stack_sync_future_rx(struct zf_stack* stack, uint16_t hw_frame_len,
                                                 uint16_t derived_frame_len)
 {
@@ -136,7 +136,7 @@ int tcp_frame_hook(zf_tcp* tcp, const char* data, uint32_t len, uint32_t seq)
   { return 1; }
 #endif
 
-ZF_HOT static inline int
+static inline int
 zf_stack_handle_rx_tcp(struct zf_stack* stack, const char* iov_base,
                        const iphdr* ip_hdr, uint16_t len)
 {
@@ -294,7 +294,7 @@ receive_error:
 }
 
 /* Waits for pftf event completion, returns true if packet is good */
-ZF_HOT static inline bool
+static inline bool
 zf_stack_tcp_finish_pftf(zf_stack* st, zf_tcp* tcp)
 {
   zf_assert(st->pftf.w);
@@ -355,7 +355,7 @@ __zf_stack_handle_rx_udp(struct zf_stack* st, struct zf_udp_rx* udp_rx,
 }
 
 
-ZF_HOT static inline int
+static inline int
 zf_stack_handle_rx_udp(struct zf_stack* st, const char* iov_base,
                        const iphdr* ip, uint16_t len)
 {
@@ -420,7 +420,7 @@ receive_error:
   return rc > 0;
 }
 
-ZF_HOT static inline bool
+static inline bool
 zf_stack_udp_finish_pftf(struct zf_stack* st, struct zf_udp_rx* udp_rx)
 {
   zf_assert(st->pftf.w);
@@ -450,10 +450,10 @@ zf_stack_udp_rx_flush(struct zf_stack* stack);
 extern int
 zf_stack_tcp_rx_flush(struct zf_stack* stack);
 
-extern ZF_HOT int
+extern int
 zf_stack_handle_rx(struct zf_stack* st, int nic, const char* iov_base,
                    pkt_id id, uint16_t frame_len);
-extern ZF_HOT int
+extern int
 zf_stack_handle_rx_pftf(struct zf_stack* st, int nic, const char* iov_base,
                         pkt_id id);
 

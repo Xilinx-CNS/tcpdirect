@@ -273,7 +273,7 @@ zft_getname(struct zft* ts, struct sockaddr* laddr_out, socklen_t* laddrlen,
   }
 }
 
-ZF_HOT static void
+static void
 zf_pftf_tcp_recv_wait(zf_stack* st, zf_tcp* tcp, zft_msg* restrict msg, int flags)
 {
   int len = zf_pftf_wait(st, msg->iov[0].iov_len);
@@ -294,7 +294,7 @@ zf_pftf_tcp_recv_wait(zf_stack* st, zf_tcp* tcp, zft_msg* restrict msg, int flag
 }
 
 
-ZF_HOT void zft_zc_recv(struct zft *ts, struct zft_msg* restrict msg, 
+void zft_zc_recv(struct zft *ts, struct zft_msg* restrict msg, 
                         int flags)
 {
   zf_stack* stack = zf_stack_from_zocket(ts);

@@ -174,7 +174,7 @@ struct zfur_msg {
 ** The api supports looking into partially received frames.
 ** See \ref using_overlapped_receive.
 */
-ZF_LIBENTRY ZF_HOT void
+ZF_LIBENTRY void
 zfur_zc_recv(struct zfur *us,
              struct zfur_msg* msg,
              int flags);
@@ -421,7 +421,7 @@ zfut_send_single_warm(struct zfut *us, const void* buf, size_t buflen);
 **
 ** \see zfut_send_single()
 */
-ZF_LIBENTRY ZF_HOT int
+ZF_LIBENTRY int
 zfut_send(struct zfut *us, const struct iovec* iov, int iov_cnt, int flags);
 
 
