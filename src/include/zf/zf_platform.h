@@ -22,7 +22,7 @@
 #include <sys/types.h>
 
 #ifdef __GNUC__
-# define ZF_HOT __attribute__((hot,flatten))
+# define ZF_HOT __attribute__((hot))
 # define ZF_COLD __attribute__((cold))
 # define ZF_NOCLONE __attribute__((noclone))
 # define ZF_CONSTFUNC __attribute__((const))

@@ -74,14 +74,14 @@ $(LIB_OBJS): $(ONLOAD_VERSION_HDR)
 
 $(ZF_SHARED_LIB): $(LIB_OBJS) $(LDEP)
 	@mkdir -p $(dir $@)
-	$(CLINK) -shared -fPIC $^ -e zf_print_version -Wl,-soname,$(ZF_SONAME),--exclude-libs,libciul1.a -o $@
+	+$(CLINK) -shared -fPIC $^ -e zf_print_version -Wl,-soname,$(ZF_SONAME),--exclude-libs,libciul1.a -o $@
 
 $(ZF_SHARED_LIB_LINK) $(ZF_SHARED_LIB_LINK_BARE): $(ZF_SHARED_LIB)
 	ln -fs $(shell basename $^) $@
 
 $(ZF_STATIC_LIB): $(LIB_OBJS) $(LDEP)
 	@mkdir -p $(dir $@)
-	$(CLINK) -fPIC -nostdlib -z combreloc -r $^ -o $@
+	+$(CLINK) -fPIC -nostdlib -z combreloc -r $^ -o $@
 	objcopy $$(nm -g -P $(CIUL_LIB) | sed -E "s/.*:$$//g" \
 					| sort -u \
 					| awk '{print "--localize-symbol="$$1}' \

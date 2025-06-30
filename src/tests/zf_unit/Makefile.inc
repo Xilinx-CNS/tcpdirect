@@ -87,7 +87,7 @@ $(UT_BINS): $(ZF_STATIC_LIB) $(CIUL_LIB)
 
 $(UT_BINS):
 	@mkdir -p $(dir $@)
-	$(CLINK) $^ -lm -lpthread -lrt -ldl -lstdc++ -o $@
+	+$(CLINK) $^ -lm -lpthread -lrt -ldl -lstdc++ -o $@
 
 ENV := EF_VI_CTPIO_MODE=fast # default mode would slow down the tests considerably
 # We would like the flexibility to use TODOs to indicate tests that *might*
@@ -240,7 +240,7 @@ $(call target_variants,$(UT_SCRIPT_LISTS)):
 
 
 # The targets need to run sequentieally as each uses huge pages and spins on CPUs
-.NOTPARALLEL: $(UT_ALL_TARGETS)
+#.NOTPARALLEL: $(UT_ALL_TARGETS)
 
 # note that for test target only subset of the generated targets is execuded
 # otherwise it would be too many combinations and notably

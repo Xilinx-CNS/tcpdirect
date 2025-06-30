@@ -17,7 +17,7 @@ $(TOOL_OBJS): ZF_CFLAGS_COMPONENT := \
 
 $(TOOL_BINS): $(BIN_ROOT)/% : $(OBJ_CURRENT)/%.o $(ZF_STATIC_LIB)
 	@mkdir -p $(dir $@)
-	$(CLINK) -m64 -O2 -g -Wl,-E $^ $(STATIC_ZF_LIB) -lm -lpthread -lrt -ldl -o $@
+	+$(CLINK) -m64 -O2 -g -Wl,-E $^ $(STATIC_ZF_LIB) -lm -lpthread -lrt -ldl -o $@
 
 .PHONY: tools
 all: tools

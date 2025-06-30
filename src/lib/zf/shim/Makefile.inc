@@ -33,7 +33,7 @@ SHIM_LINKFLAGS := -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm -ldl
 
 $(SOCKET_SHIM_SO): $(SOCKET_SHIM_OBJS) $(SHIM_LDEP)
 	@mkdir -p $(dir $@)
-	$(CLINK) -shared -fPIC $^ $(SHIM_LINKFLAGS) -Wl,-soname,$(shell basename $(SOCKET_SHIM_SO)) -o $@
+	+$(CLINK) -shared -fPIC $^ $(SHIM_LINKFLAGS) -Wl,-soname,$(shell basename $(SOCKET_SHIM_SO)) -o $@
 
 .PHONY: shim
 all: shim

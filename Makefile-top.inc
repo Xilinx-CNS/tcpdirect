@@ -14,7 +14,8 @@ ZF_CFLAGS_COMMON = \
   -Wno-unused-result \
   -Wno-stringop-truncation \
   -Wno-format-truncation \
-  -Wno-ignored-attributes
+  -Wno-ignored-attributes \
+  -flto=auto
 
 ZF_CXXFLAGS_COMMON = \
   -x c++ \
@@ -23,4 +24,5 @@ ZF_CXXFLAGS_COMMON = \
   -Wno-literal-suffix \
   -fno-exceptions \
   -fno-threadsafe-statics \
-  -Wno-address-of-packed-member
+  -Wno-address-of-packed-member \
+  -flto=auto

@@ -23,7 +23,7 @@ $(TEST_OBJS): ZF_CFLAGS_COMPONENT := -std=gnu99 $(ZF_CFLAGS_COMMON) $(ONLOAD_CFL
 
 $(APP_BINS):
 	@mkdir -p $(dir $@)
-	$(CLINK) $^ -lm -lpthread -lrt -ldl $(LDFLAGS) -o $@
+	+$(CLINK) $^ -lm -lpthread -lrt -ldl $(LDFLAGS) -o $@
 
 .PHONY: trade_sim
 all: trade_sim
