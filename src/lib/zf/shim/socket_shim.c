@@ -340,6 +340,7 @@ struct ShimSockCall<Ret (**)(int fd, Args...), real_api_call,
  * generate a dispatcher thunk.  Having done so, we then need to define the
  * API symbol to point to the thunk.  This macro handles those two steps. */
 #define ZF_INTERCEPT_FD_CALL(func)                                            \
+  ZF_VISIBLE                                                                  \
   auto zfss_##func##_thunk = ShimSockCall<decltype(&zfss_sys_##func),         \
                                           &zfss_sys_##func,                   \
                                           decltype(&zfss_socket_ops::func),   \
