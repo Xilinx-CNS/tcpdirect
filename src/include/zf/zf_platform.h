@@ -22,6 +22,12 @@
 #include <sys/types.h>
 
 #ifdef __GNUC__
+/* Note: __attribute__((flatten)) and LTO do not cooperate in TCPDirect.
+ * When both are enabled, they either cause the WPA phase of the binary
+ * link time to run out of memory or LTRANS phase to take a lot of time
+ * (minutes) to succeed.  As of today, the former approach shows better
+ * performance, and we disable LTO where applicable.
+ */
 # define ZF_HOT __attribute__((hot,flatten))
 # define ZF_COLD __attribute__((cold))
 # define ZF_NOCLONE __attribute__((noclone))
