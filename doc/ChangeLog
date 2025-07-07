@@ -1,3 +1,10 @@
+tcpdirect-9.0.2-ON-16702
+------------------------
+
+Changes:
+
+ON-16702: Disable LTO in spec file, to allow build on RHEL10
+
 tcpdirect-9.0.2
 ---------------
 

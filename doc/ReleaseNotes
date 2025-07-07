@@ -1,8 +1,27 @@
+TCPDirect-9.0.2-ON-16702
+========================
+  This is a patch release of TCPDirect to match Onload-9.0.2. The source
+  code is identical to the TCPDirect-9.0.2 release, but the SRPM spec file
+  has been updated to disable link time optimization, so that it will build
+  on RHEL10 with the standard rpmbuild command.
+
+
 TCPDirect-9.0.2
 ===============
 
   This is a minor update release of TCPDirect to match Onload-9.0.2 and
   including bug fixes since TCPDirect-9.0.1.31. See changelog for details.
+
+
+Known issue - extra rpmbuild option required for RHEL 10
+--------------------------------------------------------
+
+  Building TCP Direct for RHEL 10 requires an option to be added to the
+  rpmbuild command to disable link time optimization, otherwise the
+  build will never finish:
+
+    rpmbuild --rebuild --define "_lto_cflags %{nil}" \
+             tcpdirect-9.0.2.47-1.src.rpm
 
 
 TCPDirect-9.0.1.31
