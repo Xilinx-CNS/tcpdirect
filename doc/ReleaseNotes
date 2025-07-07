@@ -1,3 +1,11 @@
+TCPDirect-9.0.2-ON-16702
+========================
+  This is a patch release of TCPDirect to match Onload-9.0.2. The source
+  code is identical to the TCPDirect-9.0.2 release, but the SRPM spec file
+  has been updated to disable link time optimization, so that it will build
+  on RHEL10 with the standard rpmbuild command.
+
+
 TCPDirect-9.0.2
 ===============
 
