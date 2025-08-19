@@ -728,9 +728,9 @@ tcp_pcb_release(struct zf_stack* stack, struct zf_tcp* tcp)
 
 
 void
-tcp_free_segs(zf_stack* st, tcp_send_queue* sendq, unsigned begin, unsigned end)
+tcp_free_segs(zf_stack* st, tcp_send_queue* sendq, uint16_t begin, uint16_t end)
 {
-  for( unsigned i = begin; i != end; ++i )
+  for( auto i = begin; i != end; ++i )
     tcp_seg_free(&st->pool, tcp_seg_at(sendq, i));
 }
 

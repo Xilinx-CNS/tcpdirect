@@ -380,7 +380,7 @@ tcp_queue_append_EOF_marker(zf_stack* stack, zf_tcp* tcp);
 
 
 extern void
-tcp_free_segs(zf_stack* st, tcp_send_queue* sendq, unsigned begin, unsigned end);
+tcp_free_segs(zf_stack* st, tcp_send_queue* sendq, uint16_t begin, uint16_t end);
 extern ZF_COLD void
 tcp_free_sendq(zf_stack* st, tcp_send_queue* sendq);
 extern ZF_COLD void
