@@ -362,13 +362,17 @@ tcp_finwait_timeout_start(zf_stack* stack, zf_tcp* tcp);
  */
 static inline void tcp_seg_free(zf_pool* pool, tcp_seg *seg)
 {
-  if( ! seg->in_flight )
+  /* We should only free segments that have been used as its invalid to free
+   * an already free segment. */
+  zf_assert(seg->in_use);
+  if( ! seg->in_flight && seg->in_use )
     zf_pool_free_pkt(pool, tcp_seg_pkt(seg));
   /* In-flight packets will be freed by TX complete, but we should mark the
    * segment as unused.  To tell TX complete function that it should free
    * the packet, it is sufficient to set any of 'in_flight' ot 'pkt' fields
    * in the segment (see zf_stack_handle_tx_tcp). */
   seg->in_flight = false;
+  seg->in_use = false;
 }
 
 extern ZF_COLD void
