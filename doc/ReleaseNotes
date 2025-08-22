@@ -1,5 +1,12 @@
-TCPDirect-8.1.5
+TCPDirect-8.1.6
 ===============
+
+  This release of TCPDirect is a version number bump to match Onload-8.1.6,
+  with no changes.
+
+
+TCPDirect-8.1.5.38
+==================
 
   This is a minor update release of TCPDirect to match Onload-8.1.5 and
   including bug fixes since TCPDirect-8.1.4.26. See changelog for details.

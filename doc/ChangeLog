@@ -1,5 +1,11 @@
-tcpdirect-8.1.5
+tcpdirect-8.1.6
 ---------------
+
+No changes since tcpdirect-8.1.5.
+
+
+tcpdirect-8.1.5.38
+------------------
 
 Changes:
 
@@ -7,8 +13,8 @@ ON-16265: set no-poison vi flag when ctpio_mode=sf-np
 ON-16327: improve RTT estimation for delegated sends
 
 
-tcpdirect-8.1.4
----------------
+tcpdirect-8.1.4.26
+------------------
 
 See corresponding onload-8.1.4 changelog for changes in OS support.
 
@@ -18,8 +24,8 @@ ON-15038: add 'zf_stackdump attr' option to report stack attributes
 ON-15895: ensure Tx timestamps handled correctly for retransmitted packets
 
 
-tcpdirect-8.1.3
----------------
+tcpdirect-8.1.3.8
+-----------------
 
 See corresponding onload-8.1.3 changelog for changes in OS support.
 
