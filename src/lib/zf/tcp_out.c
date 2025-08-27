@@ -257,6 +257,7 @@ tcp_init_next_segment(struct zf_stack* stack, struct zf_tcp* tcp,
   seg->iov.iov_len = TCP_HLEN;
   seg->len = 0;
   seg->in_flight = 0;
+  seg->in_use = true;
 
   return seg;
 }

@@ -114,6 +114,7 @@ struct tcp_seg {
                             * used by a segment.
                             */
   bool in_flight;          /* Is the packet in flight? */
+  bool in_use;             /* Is this segment in use, or free? */
 };
 
 /* Check that our queue is large enough to contain our full advertised window,
