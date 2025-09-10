@@ -43,6 +43,7 @@
 #include <zf_internal/zf_state.h>
 
 #include <algorithm>
+#include <etherfabric/shrub_shared.h>
 
 #define PIO_WARN_IF_NOT_AVAILABLE  2
 #define PIO_MUST_USE               3
@@ -319,6 +320,22 @@ static int zf_stack_init_phys_address_mode(struct zf_stack_impl* sti,
   return 0;
 }
 
+static int zf_stack_init_shrub_controller(struct zf_stack_impl* sti,
+                                           struct zf_attr* attr,
+                                           int* shrub_controller)
+{
+  zf_stack* st = &sti->st;
+
+  if ( attr->shrub_controller < EF_SHRUB_NO_SHRUB || attr->shrub_controller > EF_SHRUB_MAX_SHRUB ) {
+    zf_log_stack_err(st, "Bad shrub_controller; value must be %d or in range 0 to %d \n",
+       EF_SHRUB_NO_SHRUB, EF_SHRUB_MAX_SHRUB);
+    return -EINVAL;
+  }
+
+  *shrub_controller = attr->shrub_controller;
+  return 0;
+}
+
 static int zf_stack_init_ctpio_stack_config(struct zf_stack_impl* sti,
                                             struct zf_attr* attr,
                                             int* ctpio_mode)
@@ -572,7 +589,8 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
                                 struct zf_attr* attr, int nicno,
                                 int ifindex, zf_if_info* if_cplane_info,
                                 unsigned vi_flags, int ctpio_mode,
-                                int rx_datapath, bool phys_address_mode)
+                                int rx_datapath, bool phys_address_mode,
+                                int shrub_controller)
 {
   zf_stack* st = &sti->st;
   struct zf_stack_nic* st_nic = &st->nic[nicno];
@@ -580,6 +598,7 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   ef_pd_flags pd_flags = EF_PD_DEFAULT;
   int rc;
   unsigned long capability_val;
+  char shrub_controller_char[EF_SHRUB_MAX_DIGITS + 1];
 
   /* Open driver. */
   rc = ef_driver_open(&sti_nic->dh);
@@ -604,6 +623,18 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
            );
       if ( rc == 0 && (capability_val & EF_VI_EXTRA_DATAPATH_EXPRESS) )
         pd_flags = (ef_pd_flags)(pd_flags | EF_PD_EXPRESS);
+  }
+
+  rc = snprintf(shrub_controller_char, sizeof(shrub_controller), "%d", shrub_controller);
+  if ( rc < 0 || rc >= (int)sizeof(shrub_controller_char) ) {
+    zf_log_stack_err(st, "Failed to format shrub_controller\n");
+    return -EINVAL;
+  }
+
+  rc = setenv("EF_SHRUB_CONTROLLER", shrub_controller_char , 1);
+  if ( rc != 0 && shrub_controller != -1 ) {
+    zf_log_stack_err(st, "Failed to set EF_SHRUB_CONTROLLER environment variable\n");
+    return -EINVAL;
   }
 
   if ( phys_address_mode ) {
@@ -867,6 +898,11 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   rc = zf_stack_init_datapath(sti, attr, &rx_datapath);
   if( rc < 0 )
     goto fail2;
+
+  int shrub_controller;
+  rc = zf_stack_init_shrub_controller(sti, attr, &shrub_controller);
+  if( rc < 0 )
+    goto fail2;
     
   bool phys_address_mode;
   rc = zf_stack_init_phys_address_mode(sti, attr, &phys_address_mode);
@@ -905,6 +941,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   sti->sti_log_level = attr->log_level;
   sti->sti_rx_datapath = rx_datapath;
   sti->sti_phys_address_mode = phys_address_mode;
+  sti->sti_shrub_controller = shrub_controller;
 
   strncpy(sti->sti_ctpio_mode, attr->ctpio_mode, 8);
   if( st->encap_type & EF_CP_ENCAP_F_VLAN )
@@ -958,7 +995,8 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
 
     rc = zf_stack_init_nic_resources(sti, attr, nicno, hwport_ifindex,
                                      &hwport_cplane_info, vi_flags,
-                                     ctpio_mode, rx_datapath, phys_address_mode);
+                                     ctpio_mode, rx_datapath, phys_address_mode,
+                                     shrub_controller);
     if( rc < 0 )
       goto fail3;
   }

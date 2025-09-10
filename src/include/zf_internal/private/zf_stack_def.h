@@ -286,6 +286,7 @@ struct zf_stack_impl {
   int sti_udp_ttl;
   int sti_rx_datapath;
   int sti_phys_address_mode;
+  int sti_shrub_controller;
   uint64_t sti_log_level;
   
   int n_alts; /* Number of alternatives actually allocated to this VI */

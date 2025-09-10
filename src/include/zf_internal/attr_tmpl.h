@@ -346,6 +346,17 @@ ZF_ATTR(int, phys_address_mode, stable, 0, NULL,
         "\n"
         "0 - Don't enable physical addressing mode. User space sees virtual addresses \n"
         "    which are translated by hardware or in the kernel.")
+
+ZF_ATTR(int, shrub_controller, stable, -1, NULL,
+        "zf_vi",
+
+        "Enable shrub controller on this VI.  This is required to enable zf_stacks \n"
+        "to attach to a given shared controller on given x4 platforms. \n"
+        "Possible values here include -1 for default no shrub controller, \n"
+        "or a value from 0 to 9999 to connect to a particular controller. \n"
+        "TCPDirect expects the shrub controller to be spawned manually separately to \n"
+        "the application using the zf_stack.")
+
 /**********************************************************************
  * zf_pool attributes.
  */
