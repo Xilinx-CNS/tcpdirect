@@ -48,6 +48,7 @@ void dump_attributes(SkewPointer<zf_stack_impl> stimpl)
     ? "enterprise"
     : "express"));
   zf_dump("phys_address_mode=%d\n", stimpl->sti_phys_address_mode);
+  zf_dump("shrub_controller=%d\n", stimpl->sti_shrub_controller);
   zf_dump("pio=%d\n", stimpl->sti_pio);
   zf_dump("reactor_spin_count=%d\n", stimpl->sti_reactor_spin_count);
   zf_dump("tcp_timewait_ms=%d\n", stimpl->sti_tcp_timewait_ms);  
