@@ -122,7 +122,7 @@ struct zf_stack {
     unsigned event_occurred_carry;
   } pftf;
 
-
+  bool x4_shared_mode;
   zf_stack_flag flags;
 
   uint32_t ctpio_max_frame_len;

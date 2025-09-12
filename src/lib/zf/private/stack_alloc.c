@@ -333,6 +333,7 @@ static int zf_stack_init_shrub_controller(struct zf_stack_impl* sti,
   }
 
   *shrub_controller = attr->shrub_controller;
+  st->x4_shared_mode = attr->shrub_controller != EF_SHRUB_NO_SHRUB;
   return 0;
 }
 
