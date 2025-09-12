@@ -16,8 +16,8 @@ inline uint64_t get_frc64_time_standard(void)
 }
 
 /* Return measure of free running counter, using rdtscp, which gives higher accuracy when measuring 
- * the duration of blocks of code as it can't be reordered, but has slightly higher overhead than
- * get_frc64_time_standard() */
+ * the duration of blocks of code as it can't be reordered with earlier instructions, but has 
+ * slightly higher overhead than get_frc64_time_standard() */
 inline uint64_t get_frc64_time_accurate(void)
 {
   unsigned int aux;
