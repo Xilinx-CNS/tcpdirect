@@ -287,10 +287,11 @@ zfrr_hw_filter_init(struct zf_stack* st, zfrr_nic_mask nics, int proto,
   zf_assume(nics);
 
   int nic;
+  enum ef_filter_flags flags = (enum ef_filter_flags) (st->x4_shared_mode ? EF_FILTER_FLAG_SHARED_RXQ : 0 );
   for( nic = 0; nic < st->nics_n; ++nic ) {
     if( (1ull << nic) & nics ) {
       ef_filter_spec spec;
-      ef_filter_spec_init(&spec, (enum ef_filter_flags) 0);
+      ef_filter_spec_init(&spec, flags);
       zfrr_hw_filter_init_vlan(st, nic, proto, laddr, &spec);
 
       if( raddr != NULL )
