@@ -37,6 +37,7 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/packetdrill-tcpdirect
           path: packetdrill-tcpdirect
+          ssh-key: ${{ secrets.PACKETDRILL_SSH_KEY }}
           ref: ${{ env.PACKETDRILL_VERSION }}
 
       - name: Install the TCPDirect build and test dependencies
