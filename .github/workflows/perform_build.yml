@@ -17,7 +17,7 @@ jobs:
       ONLOAD_TREE: ${{ github.workspace }}/onload
     steps:
       - name: Checkout TCPDirect
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: ${{ env.TCPDIRECT_TREE }}
 
@@ -26,18 +26,18 @@ jobs:
         run: cat versions.env | sed -E "s/^#.*$//g" >> "$GITHUB_ENV"
 
       - name: Checkout Onload
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ github.repository_owner }}/onload
           path: ${{ env.ONLOAD_TREE }}
           ref: ${{ env.ONLOAD_PUBLIC_TREEISH }}
 
       - name: Checkout packetdrill
-        uses: actions/checkout@v4
-        continue-on-error: true
+        uses: actions/checkout@v5
         with:
           repository: ${{ github.repository_owner }}/packetdrill-tcpdirect
           path: packetdrill-tcpdirect
+          ssh-key: ${{ secrets.PACKETDRILL_SSH_KEY }}
           ref: ${{ env.PACKETDRILL_VERSION }}
 
       - name: Install the TCPDirect build and test dependencies
