@@ -43,7 +43,7 @@
 #include <zf_internal/zf_state.h>
 
 #include <algorithm>
-#include <etherfabric/shrub_shared.h>
+#include <etherfabric/internal/shrub_shared.h>
 
 #define PIO_WARN_IF_NOT_AVAILABLE  2
 #define PIO_MUST_USE               3
