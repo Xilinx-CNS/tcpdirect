@@ -438,6 +438,31 @@ static int zf_stack_init_ctpio_nic_config(zf_stack_impl* sti,
 }
 
 
+static int zf_stack_init_tph_mode(struct zf_stack_impl* sti,
+                                  struct zf_attr* attr,
+                                  unsigned* vi_flags)
+{
+  zf_stack* st = &sti->st;
+
+  if( attr->tph_mode != NULL ) {
+    if( ! strcmp(attr->tph_mode, "nost") ) {
+      *vi_flags |= EF_VI_ENABLE_TPH;
+    }
+    else if( ! strcmp(attr->tph_mode, "st") ) {
+      *vi_flags |= EF_VI_ENABLE_TPH;
+      *vi_flags |= EF_VI_TPH_TAG_MODE;
+    }
+    else if( strcmp(attr->tph_mode, "off") ) {
+      zf_log_stack_err(st,
+                       "Bad tph_mode attribute; must be one of: off, nost, "
+                       "st\n");
+      return -EINVAL;
+    }
+  }
+  return 0;
+}
+
+
 static void zf_stack_init_zock_resource(zf_stack_impl* sti,
                                         struct zf_attr* attr)
 {
@@ -889,6 +914,10 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
 
   if( attr->tx_timestamping )
     vi_flags |= EF_VI_TX_TIMESTAMPS;
+
+  rc = zf_stack_init_tph_mode(sti, attr, &vi_flags);
+  if( rc < 0 )
+    goto fail2;
 
   int ctpio_mode;
   rc = zf_stack_init_ctpio_stack_config(sti, attr, &ctpio_mode);

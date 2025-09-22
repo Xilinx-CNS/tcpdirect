@@ -357,6 +357,15 @@ ZF_ATTR(int, shrub_controller, stable, -1, NULL,
         "TCPDirect expects the shrub controller to be spawned manually separately to \n"
         "the application using the zf_stack.")
 
+ZF_ATTR(str, tph_mode, stable, "off", "off",
+        "zf_vi",
+
+        "Set the PCIe TPH mode to use for SDCI. Set to:\n"
+        " 'off' to disable use of TPH\n"
+        " 'nost' to enable use of TPH without steering tags\n"
+        " 'st' to enable use of TPH with steering tags\n"
+        "Using steering tags is recommended on platforms that support it.")
+
 /**********************************************************************
  * zf_pool attributes.
  */
