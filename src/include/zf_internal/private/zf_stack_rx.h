@@ -383,7 +383,7 @@ zf_stack_handle_rx_udp(struct zf_stack* st, const char* iov_base,
 
       st->pftf.w = &udp_rx->w;
       st->pftf.frame_len = frame_len;
-      st->pftf.payload_len = tot_len - (ip->ihl*4) - sizeof(udp);
+      st->pftf.payload_len = tot_len - (ip->ihl*4) - sizeof(udphdr);
       st->pftf.copied_payload = (char*) (udp + 1);
       st->pftf.payload += (char*) (udp + 1) - iov_base;
       zf_log_udp_rx_trace(udp_rx, "%s: PFTF %x data %p len %d\n", __func__,
@@ -400,7 +400,7 @@ zf_stack_handle_rx_udp(struct zf_stack* st, const char* iov_base,
 
     return __zf_stack_handle_rx_udp(st, udp_rx, ((char*)udp) + sizeof(udphdr),
                                     tot_len - (ip->ihl*4) -
-                                    sizeof(udp)) || rc;
+                                    sizeof(udphdr)) || rc;
   }
 
   /* No match.  Wait for it to appear from the future if necessary before
