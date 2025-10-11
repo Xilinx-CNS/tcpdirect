@@ -398,7 +398,7 @@ zf_stack_handle_rx_udp(struct zf_stack* st, const char* iov_base,
     if(ZF_UNLIKELY( rc < 0 ))
       goto receive_error;
 
-    return __zf_stack_handle_rx_udp(st, udp_rx, ((char*)udp) + sizeof(udp),
+    return __zf_stack_handle_rx_udp(st, udp_rx, ((char*)udp) + sizeof(udphdr),
                                     tot_len - (ip->ihl*4) -
                                     sizeof(udp)) || rc;
   }
