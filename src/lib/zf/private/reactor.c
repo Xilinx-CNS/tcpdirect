@@ -208,6 +208,57 @@ zf_reactor_handle_tx_error(struct zf_stack* st, int nic_i, ef_vi* vi)
     auto* req_id = &nic->tx_reqs[nic->tx_reqs_removed & nic->tx_reqs_mask];
     auto proto = *req_id & ZF_REQ_ID_PROTO_MASK;
 
+    if( st->tx_reports.enabled() &&
+        (proto == ZF_REQ_ID_PROTO_TCP_KEEP ||
+         (proto == ZF_REQ_ID_PROTO_UDP &&
+          ~*req_id & ZF_REQ_ID_UDP_FRAGMENT)) ) {
+      auto zid = (*req_id & ZF_REQ_ID_ZOCK_ID_MASK) >> ZF_REQ_ID_ZOCK_ID_SHIFT;
+      auto tcp = (proto == ZF_REQ_ID_PROTO_TCP_KEEP);
+      auto* zock = &st->tx_reports.zocks[zf_tx_reports::zock_id(zid, tcp)];
+
+      /* If we reach this point, either there are outstanding TX completions,
+       * or we have already handled the outstanding completions and marked the
+       * zock as having dropped some. */
+      zf_assert(zock->pending || zock->dropped);
+      if( ! zock->pending )
+        continue;
+
+      /* Free all used timestamp report slots that won't see real timestamps */
+      auto head = zock->head;
+      auto pending = zock->pending;
+      do {
+        auto node_id = zock->pending;
+        auto* node = &st->tx_reports.nodes[node_id];
+        zock->pending = node->zock_next;
+        zf_tx_reports::remove_node_from_used(&st->tx_reports, node_id);
+        zf_tx_reports::remove_node_from_zock(&st->tx_reports, node_id);
+        zf_tx_reports::free_node(&st->tx_reports, node_id);
+      } while( zock->pending );
+
+      /* Reset the state tracking the outstanding timestamp reports */
+      if( head == pending ) {
+        zock->head = zock->tail = 0;
+      } else {
+        zock->head = head;
+
+        auto node_id = zock->head;
+        zf_tx_reports::node* node = nullptr;
+        while( (node = &st->tx_reports.nodes[node_id]) &&
+               node->zock_next != pending )
+          node_id = node->zock_next;
+
+        if( node ) {
+          zf_assert(node->zock_next == pending);
+          node->zock_next = 0;
+          zock->tail = node_id;
+        } else {
+          zock->tail = 0;
+        }
+      }
+
+      zock->dropped = true;
+    }
+
     /* Free the packet, else we'll leak it */
     zf_stack_handle_tx(st, nic_i, *req_id);
 
