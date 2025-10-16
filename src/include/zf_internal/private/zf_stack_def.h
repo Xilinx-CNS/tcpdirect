@@ -168,6 +168,7 @@ struct zf_stack {
     uint32_t non_tcpudp;
     unsigned cplane_alien_ifindex;
     uint32_t tcp_retransmits;
+    uint32_t tx_error_events;
   } stats;
 };
 

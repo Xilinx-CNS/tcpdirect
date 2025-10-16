@@ -197,6 +197,10 @@ zf_reactor_handle_tx_error(struct zf_stack* st, int nic_i, ef_vi* vi)
    * events to be either with or without timestamps. */
   zf_assume((vi->vi_flags & EF_VI_TX_ALT) == 0);
 
+  st->stats.tx_error_events++;
+  zf_log_stack_err(st, "saw TX error event, total seen on this stack %u\n",
+                   st->stats.tx_error_events);
+
   /* Any outstanding transmits for this NIC should be considered void. We
    * pretend that the NIC has acknowledged them and rely on existing
    * functionality to retransmit as necessary. */
