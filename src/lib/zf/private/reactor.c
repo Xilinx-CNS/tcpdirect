@@ -345,6 +345,9 @@ zf_reactor_process_event(struct zf_stack* st, int nic, ef_vi* vi, ef_event* ev)
   case EF_EVENT_TYPE_RX_REF_DISCARD:
     zf_reactor_handle_rx_ref_discard(st, nic, vi, ev);
     break;
+  case EF_EVENT_TYPE_TX_ERROR:
+    zf_reactor_handle_tx_error(st, nic, vi);
+    break;
   default:
     zf_log_stack_err(st, "ERROR: unexpected event type=%d\n",
                      (int) EF_EVENT_TYPE(*ev));
