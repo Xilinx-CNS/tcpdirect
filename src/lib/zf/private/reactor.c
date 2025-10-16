@@ -186,6 +186,40 @@ efct_pkt_memcpy(void* dst, const void* src, size_t n)
 }
 
 
+static void
+zf_reactor_handle_tx_error(struct zf_stack* st, int nic_i, ef_vi* vi)
+{
+  auto* nic = &st->nic[nic_i];
+
+  /* There are three types of successful TX events we can receive: TX, TX_ALT,
+   * and TX_WITH_TIMESTAMP. TX error events don't currently happen on hardware
+   * that support alternatives, so this limits the conditions for pending TX
+   * events to be either with or without timestamps. */
+  zf_assume((vi->vi_flags & EF_VI_TX_ALT) == 0);
+
+  /* Any outstanding transmits for this NIC should be considered void. We
+   * pretend that the NIC has acknowledged them and rely on existing
+   * functionality to retransmit as necessary. */
+  for( ; nic->tx_reqs_removed != nic->tx_reqs_added; nic->tx_reqs_removed++ ) {
+    auto* req_id = &nic->tx_reqs[nic->tx_reqs_removed & nic->tx_reqs_mask];
+    auto proto = *req_id & ZF_REQ_ID_PROTO_MASK;
+
+    /* Free the packet, else we'll leak it */
+    zf_stack_handle_tx(st, nic_i, *req_id);
+
+    *req_id = ZF_REQ_ID_INVALID;
+  }
+
+  /* Restart our TXQ, we don't retry this currently, so failure will mean this
+   * stack can't transmit anymore. */
+  auto rc = ef_vi_reinit_txq_post_error(vi);
+  if( rc < 0 )
+    zf_log_stack_err(st,
+                     "ERROR: failed to recover from a TX error event rc=%d\n",
+                     rc);
+}
+
+
 /* returns 1 if something interesting has happened */
 ZF_HOT int
 zf_reactor_process_event(struct zf_stack* st, int nic, ef_vi* vi, ef_event* ev)
