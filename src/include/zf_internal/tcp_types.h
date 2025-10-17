@@ -127,6 +127,19 @@ static constexpr unsigned TCP_SND_QUEUE_SEG_COUNT = TCP_SND_QUEUELEN;
 static_assert((TCP_SND_QUEUE_SEG_COUNT & (TCP_SND_QUEUE_SEG_COUNT - 1)) == 0,
               "TCP_SND_QUEUE_SEG_COUNT must be power of 2");
 
+template<typename T>
+constexpr T type_mask() {
+  /* Construct the mask carefully to avoid an overflow. We can fill all but the
+   * highest bit by setting the highest bit and subtracting 1 from that value.
+   * After which we can directly set the highest bit to have all 1s. */
+  constexpr T lowest_set = 1;
+  constexpr auto t_bits = 8 * sizeof(T);
+  constexpr T highest_set = lowest_set << (t_bits - 1);
+  constexpr T all_but_highest_set = highest_set - 1;
+  constexpr T all_set = all_but_highest_set | highest_set;
+  return all_set;
+}
+
 struct tcp_send_queue {
   /* Represents send queue.
    * The queue is stored in a ring based on tcp_seg array, and
@@ -141,6 +154,7 @@ struct tcp_send_queue {
    * left behind the pointer need to be freed (e.g. pkt buffers released).
    */
   typedef uint16_t idx;
+#define TCP_SND_QUEUE_IDX_MASK (type_mask<tcp_send_queue::idx>())
   idx begin;
   idx middle;
   idx end;
