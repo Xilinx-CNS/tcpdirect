@@ -140,9 +140,10 @@ struct tcp_send_queue {
    * Finally, when ack arrives the begin pointer is moved, and segments
    * left behind the pointer need to be freed (e.g. pkt buffers released).
    */
-  uint16_t begin;
-  uint16_t middle;
-  uint16_t end;
+  typedef uint16_t idx;
+  idx begin;
+  idx middle;
+  idx end;
   struct tcp_seg segs[TCP_SND_QUEUE_SEG_COUNT];
 };
 
