@@ -1496,7 +1496,7 @@ int zft_alternatives_queue(struct zft* ts, zf_althandle althandle,
     return -EAGAIN;
   }
 
-  int saved_altq_end = alt->tcp.altq.end;
+  auto saved_altq_end = alt->tcp.altq.end;
   uint32_t saved_seq = alt->tcp.alt_snd_nxt;
   int segs;
   ef_vi* vi = zf_stack_nic_tx_vi(stack, 0);
