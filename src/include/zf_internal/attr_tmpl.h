@@ -194,6 +194,12 @@ ZF_ATTR(int, udp_ttl, stable, 64, "64",
         "Value of TTL field (Time To Live) for outgoing UDP packets "
         "(valid range 1-255).")
 
+ZF_ATTR(int, tx_error_recovery, stable, 1, "on",
+        "zf_stack",
+
+        "Defines whether a stack should attempt to recover from a TX error "
+        "event. (enabled by default)")
+
 
 /**********************************************************************
  * zf_vi attributes.
