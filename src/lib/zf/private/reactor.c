@@ -189,6 +189,7 @@ efct_pkt_memcpy(void* dst, const void* src, size_t n)
 static void
 zf_reactor_handle_tx_error(struct zf_stack* st, int nic_i, ef_vi* vi)
 {
+  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
   auto* nic = &st->nic[nic_i];
 
   /* There are three types of successful TX events we can receive: TX, TX_ALT,
@@ -200,6 +201,12 @@ zf_reactor_handle_tx_error(struct zf_stack* st, int nic_i, ef_vi* vi)
   st->stats.tx_error_events++;
   zf_log_stack_err(st, "saw TX error event, total seen on this stack %u\n",
                    st->stats.tx_error_events);
+
+  if( ! sti->sti_tx_error_recovery ) {
+    zf_log_stack_err(st,
+                     "Not attempting to recover from TX error event as tx_error_recovery is disabled.\n");
+    return;
+  }
 
   /* Any outstanding transmits for this NIC should be considered void. We
    * pretend that the NIC has acknowledged them and rely on existing

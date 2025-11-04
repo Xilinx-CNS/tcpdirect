@@ -972,6 +972,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   sti->sti_rx_datapath = rx_datapath;
   sti->sti_phys_address_mode = phys_address_mode;
   sti->sti_shrub_controller = shrub_controller;
+  sti->sti_tx_error_recovery = attr->tx_error_recovery;
 
   strncpy(sti->sti_ctpio_mode, attr->ctpio_mode, 8);
   if( st->encap_type & EF_CP_ENCAP_F_VLAN )
