@@ -207,6 +207,12 @@ static void* monitor_fn(void* arg)
 }
 
 
+static void callback(void* arg)
+{
+  printf("Reset callback on %s\n", (char*)arg);
+}
+
+
 int main(int argc, char* argv[])
 {
   pthread_t thread_id;
@@ -291,6 +297,10 @@ int main(int argc, char* argv[])
   pthread_mutex_init(&printf_mutex, NULL);
   res.n_rx_bytes = 0;
   res.n_rx_pkts = 0;
+
+  char* intf;
+  zf_attr_get_str(attr, "interface", &intf);
+  zf_set_reset_callback(stack, &callback, intf);
 
   if( ! cfg_quiet )
     ZF_TRY(pthread_create(&thread_id, NULL, monitor_fn, NULL) == 0);

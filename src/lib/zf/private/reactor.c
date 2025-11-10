@@ -186,6 +186,13 @@ efct_pkt_memcpy(void* dst, const void* src, size_t n)
 }
 
 
+ZF_COLD static void
+zf_reactor_handle_reset_event(struct zf_stack* st)
+{
+  const struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
+  sti->reset_callback(sti->reset_callback_arg);
+}
+
 /* returns 1 if something interesting has happened */
 ZF_HOT int
 zf_reactor_process_event(struct zf_stack* st, int nic, ef_vi* vi, ef_event* ev)
@@ -255,6 +262,9 @@ zf_reactor_process_event(struct zf_stack* st, int nic, ef_vi* vi, ef_event* ev)
     break;
   case EF_EVENT_TYPE_RX_REF_DISCARD:
     zf_reactor_handle_rx_ref_discard(st, nic, vi, ev);
+    break;
+  case EF_EVENT_TYPE_RESET:
+    zf_reactor_handle_reset_event(st);
     break;
   default:
     zf_log_stack_err(st, "ERROR: unexpected event type=%d\n",
