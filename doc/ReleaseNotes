@@ -1,15 +1,12 @@
-This is not a supported release version of TCPDirect
-====================================================
-
-TCPDirect-9.1~preview3
-======================
-
-  This is a feature preview of TCPDirect matching the corresponding
-  Onload preview. See changelog for details.
-
-
-TCPDirect-9.0.2
+TCPDirect-9.1.0
 ===============
+
+  This is a feature release of TCPDirect matching the corresponding
+  Onload release. See changelog for details.
+
+
+TCPDirect-9.0.2.47
+==================
 
   This is a minor update release of TCPDirect to match Onload-9.0.2 and
   including bug fixes since TCPDirect-9.0.1.31. See changelog for details.
