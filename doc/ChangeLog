@@ -1,10 +1,10 @@
-tcpdirect-9.1.0~preview3
-------------------------
+tcpdirect-9.1.0
+---------------
 
 ON-16111: use monitor thread in zfsink to allow testing higher rates
 
 
-tcpdirect-9.0.2.45
+tcpdirect-9.0.2.47
 ------------------
 
 ON-15400: allow programatically setting log_level, log_format and log_file.

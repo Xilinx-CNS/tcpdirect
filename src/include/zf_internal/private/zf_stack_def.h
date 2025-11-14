@@ -168,6 +168,7 @@ struct zf_stack {
     uint32_t non_tcpudp;
     unsigned cplane_alien_ifindex;
     uint32_t tcp_retransmits;
+    uint32_t tx_error_events;
   } stats;
 };
 
@@ -288,6 +289,7 @@ struct zf_stack_impl {
   int sti_phys_address_mode;
   int sti_shrub_controller;
   uint64_t sti_log_level;
+  bool sti_tx_error_recovery;
   
   int n_alts; /* Number of alternatives actually allocated to this VI */
   struct zf_alt alt[zf_stack::MAX_ALTERNATIVES]; /* indexed by ef_vi ID */

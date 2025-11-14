@@ -186,6 +186,102 @@ efct_pkt_memcpy(void* dst, const void* src, size_t n)
 }
 
 
+static void
+zf_reactor_handle_tx_error(struct zf_stack* st, int nic_i, ef_vi* vi)
+{
+  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
+  auto* nic = &st->nic[nic_i];
+
+  /* There are three types of successful TX events we can receive: TX, TX_ALT,
+   * and TX_WITH_TIMESTAMP. TX error events don't currently happen on hardware
+   * that support alternatives, so this limits the conditions for pending TX
+   * events to be either with or without timestamps. */
+  zf_assume((vi->vi_flags & EF_VI_TX_ALT) == 0);
+
+  st->stats.tx_error_events++;
+  zf_log_stack_err(st, "saw TX error event, total seen on this stack %u\n",
+                   st->stats.tx_error_events);
+
+  if( ! sti->sti_tx_error_recovery ) {
+    zf_log_stack_err(st,
+                     "Not attempting to recover from TX error event as tx_error_recovery is disabled.\n");
+    return;
+  }
+
+  /* Any outstanding transmits for this NIC should be considered void. We
+   * pretend that the NIC has acknowledged them and rely on existing
+   * functionality to retransmit as necessary. */
+  for( ; nic->tx_reqs_removed != nic->tx_reqs_added; nic->tx_reqs_removed++ ) {
+    auto* req_id = &nic->tx_reqs[nic->tx_reqs_removed & nic->tx_reqs_mask];
+    auto proto = *req_id & ZF_REQ_ID_PROTO_MASK;
+
+    if( st->tx_reports.enabled() &&
+        (proto == ZF_REQ_ID_PROTO_TCP_KEEP ||
+         (proto == ZF_REQ_ID_PROTO_UDP &&
+          ~*req_id & ZF_REQ_ID_UDP_FRAGMENT)) ) {
+      auto zid = (*req_id & ZF_REQ_ID_ZOCK_ID_MASK) >> ZF_REQ_ID_ZOCK_ID_SHIFT;
+      auto tcp = (proto == ZF_REQ_ID_PROTO_TCP_KEEP);
+      auto* zock = &st->tx_reports.zocks[zf_tx_reports::zock_id(zid, tcp)];
+
+      /* If we reach this point, either there are outstanding TX completions,
+       * or we have already handled the outstanding completions and marked the
+       * zock as having dropped some. */
+      zf_assert(zock->pending || zock->dropped);
+      if( ! zock->pending )
+        continue;
+
+      /* Free all used timestamp report slots that won't see real timestamps */
+      auto head = zock->head;
+      auto pending = zock->pending;
+      do {
+        auto node_id = zock->pending;
+        auto* node = &st->tx_reports.nodes[node_id];
+        zock->pending = node->zock_next;
+        zf_tx_reports::remove_node_from_used(&st->tx_reports, node_id);
+        zf_tx_reports::remove_node_from_zock(&st->tx_reports, node_id);
+        zf_tx_reports::free_node(&st->tx_reports, node_id);
+      } while( zock->pending );
+
+      /* Reset the state tracking the outstanding timestamp reports */
+      if( head == pending ) {
+        zock->head = zock->tail = 0;
+      } else {
+        zock->head = head;
+
+        auto node_id = zock->head;
+        zf_tx_reports::node* node = nullptr;
+        while( (node = &st->tx_reports.nodes[node_id]) &&
+               node->zock_next != pending )
+          node_id = node->zock_next;
+
+        if( node ) {
+          zf_assert(node->zock_next == pending);
+          node->zock_next = 0;
+          zock->tail = node_id;
+        } else {
+          zock->tail = 0;
+        }
+      }
+
+      zock->dropped = true;
+    }
+
+    /* Free the packet, else we'll leak it */
+    zf_stack_handle_tx(st, nic_i, *req_id);
+
+    *req_id = ZF_REQ_ID_INVALID;
+  }
+
+  /* Restart our TXQ, we don't retry this currently, so failure will mean this
+   * stack can't transmit anymore. */
+  auto rc = ef_vi_reinit_txq_post_error(vi);
+  if( rc < 0 )
+    zf_log_stack_err(st,
+                     "ERROR: failed to recover from a TX error event rc=%d\n",
+                     rc);
+}
+
+
 /* returns 1 if something interesting has happened */
 ZF_HOT int
 zf_reactor_process_event(struct zf_stack* st, int nic, ef_vi* vi, ef_event* ev)
@@ -255,6 +351,9 @@ zf_reactor_process_event(struct zf_stack* st, int nic, ef_vi* vi, ef_event* ev)
     break;
   case EF_EVENT_TYPE_RX_REF_DISCARD:
     zf_reactor_handle_rx_ref_discard(st, nic, vi, ev);
+    break;
+  case EF_EVENT_TYPE_TX_ERROR:
+    zf_reactor_handle_tx_error(st, nic, vi);
     break;
   default:
     zf_log_stack_err(st, "ERROR: unexpected event type=%d\n",

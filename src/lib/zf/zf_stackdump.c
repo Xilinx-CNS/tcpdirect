@@ -143,6 +143,7 @@ void dump_stack(SkewPointer<zf_stack_impl> stimpl)
   zf_dump("  stats: ring_refill_nomem=%d cplane_alien_ifindex=%u\n",
           stack->stats.ring_refill_nomem, stack->stats.cplane_alien_ifindex);
   zf_dump("         tcp_retransmits=%d\n", stack->stats.tcp_retransmits);
+  zf_dump("         tx_error_events=%u\n", stack->stats.tx_error_events);
   zf_dump("  discards: discard_csum_bad=%u discard_mcast_mismatch=%u\n"
           "         discard_crc_bad=%u discard_trunc=%u discard_rights=%u\n"
           "         discard_ev_error=%u discard_other=%u discard_inner_csum_bad=%u\n"
