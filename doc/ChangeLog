@@ -1,7 +1,7 @@
 tcpdirect-9.1.1
 ---------------
 
-No changes since previous version
+ON-17116: disable overlapped receive on unsupported EFCT architectures
 
 
 tcpdirect-9.1.0.4
