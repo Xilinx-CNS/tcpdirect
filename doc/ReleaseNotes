@@ -1,5 +1,12 @@
-TCPDirect-9.1.0
+TCPDirect-9.1.1
 ===============
+
+  This is an update release of TCPDirect to accompany Onload-9.1.1.
+  See changelog for details.
+
+
+TCPDirect-9.1.0.4
+=================
 
   This is a feature release of TCPDirect matching the corresponding
   Onload release. See changelog for details.
@@ -138,4 +145,4 @@ Installation
 
 
 SPDX-License-Identifier: MIT
-SPDX-FileCopyrightText: (c) 2023-2024 Advanced Micro Devices, Inc.
+SPDX-FileCopyrightText: (c) 2023-2026 Advanced Micro Devices, Inc.

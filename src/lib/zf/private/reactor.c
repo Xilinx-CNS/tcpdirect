@@ -643,6 +643,7 @@ __zf_reactor_perform(struct zf_stack* st, unsigned spin_cnt)
              * but it's advantageous to set these sooner rather than later. */
             st->future_nic_id = nic;
             st->future_packet_id = next_packet_id;
+            st->pftf.can_overlap = ! is_efct;
 
             /* A packet is arriving from the future.  We can begin protocol-
              * processing in the hope that the rest of the packet arrives

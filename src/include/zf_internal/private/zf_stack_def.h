@@ -120,6 +120,7 @@ struct zf_stack {
      * Typically set when unrelated user visible event interrupted pftf.
      */
     unsigned event_occurred_carry;
+    bool can_overlap;
   } pftf;
 
   bool x4_shared_mode;

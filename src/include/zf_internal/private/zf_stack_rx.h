@@ -199,7 +199,7 @@ zf_stack_handle_rx_tcp(struct zf_stack* stack, const char* iov_base,
 
       tcp_cut_through(tcp, payload, payload_len);
 
-      if( len == 0 &&
+      if( len == 0 && stack->pftf.can_overlap &&
           tcp->w.event.events & ZF_EPOLLIN_OVERLAPPED &&
           /* make sure there has been no other pkt on rxq */
           zfr_queue_packets_unread_n(&tcp->tsr) == 1 ) {
@@ -376,7 +376,7 @@ zf_stack_handle_rx_udp(struct zf_stack* st, const char* iov_base,
                          ip->daddr, 0, udp->dest, 0, &index) == 0 )) {
     struct zf_udp_rx* udp_rx = &st->udp_rx[index];
 
-    if( len == 0 &&
+    if( len == 0 && st->pftf.can_overlap &&
         udp_rx->w.event.events & ZF_EPOLLIN_OVERLAPPED ) {
 
       zf_assert_nflags(udp_rx->w.readiness_mask, ZF_EPOLLIN_OVERLAPPED);
