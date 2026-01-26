@@ -39,17 +39,19 @@ class ZfPipeline implements Serializable {
     script.archiveArtifacts(zipfile)
   }
 
-  void doPipeline(String tcpdirect_stash,
-                  String onload_stash,
-                  String onload_tarball_stash,
-                  String onload_tarball,
-                  version_info)
+  Map doPipeline(String tcpdirect_stash,
+                 String onload_stash,
+                 String onload_tarball_stash,
+                 String onload_tarball,
+                 version_info)
   {
+    def package_locations = [:]
+
     script.stage('Parallel builds') {
       utils.parallel(
         'build ndebug': {
           script.node('unit-test-master') {
-            script.sh 'rm -fr tcpdirect onload'
+            script.deleteDir()
             script.unstash(tcpdirect_stash)
             script.unstash(onload_stash)
             script.sh 'ls -lad $PWD'
@@ -68,7 +70,7 @@ class ZfPipeline implements Serializable {
         },
         'build libzf_sockets': {
           script.node('unit-test-master') {
-            script.sh 'rm -fr tcpdirect onload'
+            script.deleteDir()
             script.unstash(tcpdirect_stash)
             script.unstash(onload_stash)
             script.sh 'ls -lad $PWD'
@@ -85,7 +87,7 @@ class ZfPipeline implements Serializable {
         },
         'run tests': {
           script.node('unit-test-master') {
-            script.sh 'rm -fr tcpdirect onload packetdrill-tcpdirect test-results'
+            script.deleteDir()
             script.unstash(tcpdirect_stash)
             script.unstash(onload_stash)
             script.sh 'ls -lad $PWD'
@@ -111,39 +113,51 @@ class ZfPipeline implements Serializable {
       )
     }
 
-    // This step produces release artifacts, must be run in controlled environment
-    script.node('unit-test-master') {
-      script.stage("Build TCPDirect Tarball") {
-        script.sh 'rm -fr tcpdirect onload'
-        script.unstash(tcpdirect_stash)
-        script.unstash(onload_tarball_stash)
-        script.sh 'ls -la $PWD'
-        def CC = script.sh(script: 'ls -1d /opt/rh/devtoolset-{11,10,9,8}/root/usr/bin/cc $(which cc) 2>/dev/null | head -1',
-                      returnStdout: true)
-        script.sh """#!/bin/bash
-          export CC=${CC}
-          tcpdirect/scripts/zf_mkdist --version ${version_info.TCPDIRECT_VERSION} --name tcpdirect ${onload_tarball}
-        """
-        extractNotes("tcpdirect/scripts", "tcpdirect/build/tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz")
-        script.dir('tcpdirect/build/') {
-          script.archiveArtifacts(artifacts: '*.tgz')
-          script.archiveArtifacts(artifacts: '*.md5')
-          script.archiveArtifacts(artifacts: '*.txt')
-          script.sh 'rm *ReleaseNotes.txt'
-          script.stash name: 'text_files', includes: '*.txt'
-          zip_and_archive_files(
-            "tcpdirect-${version_info.TCPDIRECT_VERSION}-tarball-doxbox.zip",
-            '*.tgz',
-            '*.md5',
-            '*.txt'
-          )
-        }
-      }
-    }
-
     script.stage('Build packages') {
       utils.parallel(
-        "publish release rpm": {
+        "build tarball": {
+          script.node('unit-test-master') {
+            script.deleteDir()
+            script.unstash(tcpdirect_stash)
+            script.unstash(onload_tarball_stash)
+            script.sh 'ls -la $PWD'
+            def CC = script.sh(script: 'ls -1d /opt/rh/devtoolset-{11,10,9,8}/root/usr/bin/cc $(which cc) 2>/dev/null | head -1',
+                          returnStdout: true)
+            script.sh """#!/bin/bash
+              export CC=${CC}
+              tcpdirect/scripts/zf_mkdist --version ${version_info.TCPDIRECT_VERSION} --name tcpdirect ${onload_tarball}
+            """
+            extractNotes("tcpdirect/scripts", "tcpdirect/build/tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz")
+            script.dir('tcpdirect/build/') {
+              def tarball_prefix = "tcpdirect-${version_info.TCPDIRECT_VERSION}"
+              def raw_tarball = "${tarball_prefix}.tgz"
+              def raw_tarball_md5 = "${tarball_prefix}.tgz.md5"
+
+              script.archiveArtifacts(artifacts: '*.tgz')
+              script.archiveArtifacts(artifacts: '*.md5')
+              script.archiveArtifacts(artifacts: '*.txt')
+
+              package_locations['raw_tarball'] = raw_tarball
+              package_locations['raw_tarball_md5'] = raw_tarball_md5
+
+              script.stash name: 'raw_tarball', includes: raw_tarball
+              script.stash name: 'raw_tarball_md5', includes: raw_tarball_md5
+
+              script.sh 'rm *ReleaseNotes.txt'
+              script.stash name: 'text_files', includes: '*.txt'
+              def tarball_doxbox = "${tarball_prefix}-tarball-doxbox.zip"
+              zip_and_archive_files(
+                tarball_doxbox,
+                '*.tgz',
+                '*.md5',
+                '*.txt'
+              )
+              package_locations['tarball_doxbox'] = tarball_doxbox
+              script.stash name: 'tarball_doxbox', includes: tarball_doxbox
+            }
+          }
+        },
+        "build rpm": {
           script.node("publish-rpm-parallel") {
             script.deleteDir()
             script.unstash(tcpdirect_stash)
@@ -153,42 +167,73 @@ class ZfPipeline implements Serializable {
             def safe_version_string = version_info.TCPDIRECT_VERSION.replace('-','_')
             script.sh "fakeroot tcpdirect/scripts/zf_make_official_srpm --version ${safe_version_string} --outdir ${outdir}"
             script.archiveArtifacts allowEmptyArchive: true, artifacts: 'rpmbuild/SRPMS/*.src.rpm', followSymlinks: false
-            script.unstash('text_files')
-            zip_and_archive_files(
-              "tcpdirect-${version_info.TCPDIRECT_VERSION}-srpm-doxbox.zip",
-              'rpmbuild/SRPMS/*.src.rpm',
-              '*.txt'
-            )
+            def srpm = "rpmbuild/SRPMS/tcpdirect-${safe_version_string}-1.src.rpm"
+            package_locations['srpm'] = srpm
+            script.stash name: 'srpm', includes: srpm
             script.sh "rm -rf ${outdir}"
           }
         },
-        "publish deb": {
+        "build deb": {
           script.node("deb") {
-            script.stage('Create source tarball') {
-              script.deleteDir()
-              script.unstash(tcpdirect_stash)
-              script.sh "tcpdirect/scripts/zf_mksrc --version ${version_info.TCPDIRECT_VERSION}"
-              script.stash name: 'tcpdirect-tar', includes: "tcpdirect-${version_info.TCPDIRECT_VERSION}.tar.gz"
-              script.sh "mv tcpdirect-${version_info.TCPDIRECT_VERSION}.tar.gz tcpdirect-source-${version_info.TCPDIRECT_VERSION}.tar.gz"
-              script.archiveArtifacts allowEmptyArchive: true, artifacts: "tcpdirect-source-${version_info.TCPDIRECT_VERSION}.tar.gz", followSymlinks: false
-            }
-            script.stage('create deb') {
-              script.deleteDir()
-              script.unstash('tcpdirect-tar')
-              script.unstash(tcpdirect_stash)
-              script.sh "tcpdirect/scripts/zf_make_official_deb --version ${version_info.TCPDIRECT_VERSION} tcpdirect-${version_info.TCPDIRECT_VERSION}.tar.gz"
-              script.archiveArtifacts allowEmptyArchive: true, artifacts: '*debiansource.tgz', followSymlinks: false
-              script.unstash('text_files')
-              zip_and_archive_files(
-                "tcpdirect-${version_info.TCPDIRECT_VERSION}-deb-doxbox.zip",
-                '*debiansource.tgz',
-                '*.txt'
-              )
-            }
+            script.deleteDir()
+            script.unstash(tcpdirect_stash)
+            script.sh "tcpdirect/scripts/zf_mksrc --version ${version_info.TCPDIRECT_VERSION}"
+            def source = "tcpdirect-${version_info.TCPDIRECT_VERSION}.tar.gz"
+            script.stash name: 'tcpdirect-tar', includes: source
+            package_locations['source'] = source
+            script.stash name: 'source', includes: source
+            script.archiveArtifacts allowEmptyArchive: true, artifacts: source, followSymlinks: false
+
+            script.sh "tcpdirect/scripts/zf_make_official_deb --version ${version_info.TCPDIRECT_VERSION} ${source}"
+            def deb_file = "tcpdirect-${version_info.TCPDIRECT_VERSION}-debiansource.tgz"
+            script.sh "find . -name '*debiansource*.tgz' -exec cp {} ${deb_file} \\;"
+            script.sh "ls -la ${deb_file}"
+            package_locations['debiansource'] = deb_file
+            script.stash name: 'debiansource', includes: deb_file
+            script.archiveArtifacts allowEmptyArchive: true, artifacts: deb_file, followSymlinks: false
           }
         }
       )
     }
+
+    // Create doxbox zips after all packages are built (needs text_files stash from tarball)
+    script.stage('Create doxbox archives') {
+      utils.parallel(
+        "srpm doxbox": {
+          script.node("publish-rpm-parallel") {
+            script.deleteDir()
+            script.unstash('srpm')
+            script.unstash('text_files')
+            def safe_version_string = version_info.TCPDIRECT_VERSION.replace('-','_')
+            def srpm_file = "rpmbuild/SRPMS/tcpdirect-${safe_version_string}-1.src.rpm"
+            def srpm_doxbox = "tcpdirect-${version_info.TCPDIRECT_VERSION}-srpm-doxbox.zip"
+            zip_and_archive_files(
+              srpm_doxbox,
+              srpm_file,
+              '*.txt'
+            )
+            package_locations['srpm_doxbox'] = srpm_doxbox
+            script.stash name: 'srpm_doxbox', includes: srpm_doxbox
+          }
+        },
+        "deb doxbox": {
+          script.node("deb") {
+            script.deleteDir()
+            script.unstash('debiansource')
+            script.unstash('text_files')
+            def deb_doxbox_name = "tcpdirect-${version_info.TCPDIRECT_VERSION}-deb-doxbox.zip"
+            zip_and_archive_files(
+              deb_doxbox_name,
+              '*debiansource.tgz',
+              '*.txt'
+            )
+            package_locations['deb_doxbox'] = deb_doxbox_name
+            script.stash name: 'deb_doxbox', includes: deb_doxbox_name
+          }
+        }
+      )
+    }
+    return package_locations
   }
 }
 
