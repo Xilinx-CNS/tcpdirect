@@ -7,6 +7,7 @@ import com.solarflarecom.onload.utils.UtilityManager
 import com.solarflarecom.onload.autosmoke.AutosmokeManager
 import com.solarflarecom.onload.test.TestManager
 import com.solarflarecom.onload.scm.SCMManager
+import com.solarflarecom.onload.publishing.ArtifactoryPublisher
 
 
 import groovy.transform.Field
@@ -65,16 +66,39 @@ nm.slack_notify() {
     }
   }
 
-  pipeline.doPipeline('tcpdirect-src',
-                      'onload-src',
-                      'onload-tar',
-                      onload_tarball,
-                      version_info)
+  def built_package_locations = pipeline.doPipeline('tcpdirect-src',
+                                                    'onload-src',
+                                                    'onload-tar',
+                                                    onload_tarball,
+                                                    version_info)
+
+  // Publish packages to Artifactory
+  def VERSION = version_info.TCPDIRECT_VERSION
+  def long_revision = scmVars.GIT_COMMIT
+  
+  node('master') {
+    stage('Publish to Artifactory') {
+      def publisher = new ArtifactoryPublisher(this)
+      def branch_name = env.BRANCH_NAME.toLowerCase().replaceAll('^v', '').replace('_', '.')
+      def branch_with_product = "tcpdirect-${branch_name}"
+      
+      echo "Branch: ${env.BRANCH_NAME}, Personal job: ${personal_job}"
+      echo "VERSION: ${VERSION}, revision: ${long_revision}"
+      
+      utils.withArtifactoryURL() {
+        utils.withArtifactoryCreds() {
+          echo "Publishing TCPDirect packages to Artifactory..."
+          publisher.publishStashedPackages('tcpdirect', built_package_locations, branch_with_product, VERSION, long_revision)
+        }
+      }
+    }
+  }
 
   // this uses 'runbench' node internally
   am.doAutosmoke(version_info.ONLOAD_REPO_SOURCE, version_info.ONLOAD_VERSION,
                  'last_known_good/' + version_info.ONLOAD_VERSION,
                  orgfilesRepo, personal_job, true, am.sourceUrl(), env.BRANCH_NAME)
+
 }
 
 
