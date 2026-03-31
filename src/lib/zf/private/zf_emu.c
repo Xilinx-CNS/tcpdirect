@@ -2264,6 +2264,7 @@ static int emu_ef_vi_alloc_from_pd(ef_vi* vi, ef_driver_handle vi_dh,
 
   vi->evq_mask = evq_mask;
   vi->evq_base = (char*) evi->evq.descriptors;
+  vi->evq_max_events = evq_capacity;
   vi->vi_rxq.mask = evi->rxq.mask;
   vi->vi_rxq.descriptors = evi->rxq.descriptors;
   vi->vi_rxq.ids = evi->rxq.ids;
