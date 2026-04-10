@@ -287,6 +287,7 @@ zfrr_hw_filter_init(struct zf_stack* st, zfrr_nic_mask nics, int proto,
 
   int nic;
   enum ef_filter_flags flags = (enum ef_filter_flags) (st->x4_shared_mode ? EF_FILTER_FLAG_SHARED_RXQ : 0 );
+  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
 
   for( nic = 0; nic < st->nics_n; ++nic ) {
     if( (1ull << nic) & nics ) {
