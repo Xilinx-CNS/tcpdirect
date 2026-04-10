@@ -287,7 +287,6 @@ zfrr_hw_filter_init(struct zf_stack* st, zfrr_nic_mask nics, int proto,
 
   int nic;
   enum ef_filter_flags flags = (enum ef_filter_flags) (st->x4_shared_mode ? EF_FILTER_FLAG_SHARED_RXQ : 0 );
-  struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
 
   for( nic = 0; nic < st->nics_n; ++nic ) {
     if( (1ull << nic) & nics ) {
@@ -298,7 +297,7 @@ zfrr_hw_filter_init(struct zf_stack* st, zfrr_nic_mask nics, int proto,
       if( st->x4_shared_mode && sti->sti_shrub_controller >= 0 )
         /* In shared mode, we need to set the shrub controller on the filter so
          * that it gets steered to the right place. */
-        rc = ef_filter_spec_set_shrub_hwport(&spec, sti->sti_shrub_controller, -1, sti->nic[nic].ifindex, flags);
+        rc = ef_filter_spec_set_shrub(&spec, sti->sti_shrub_controller, -1);
       else if( raddr != NULL )
         rc = ef_filter_spec_set_ip4_full(&spec, proto, laddr->sin_addr.s_addr,
                                          laddr->sin_port,
