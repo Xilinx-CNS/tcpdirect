@@ -298,7 +298,8 @@ zfrr_hw_filter_init(struct zf_stack* st, zfrr_nic_mask nics, int proto,
       if( st->x4_shared_mode && sti->sti_shrub_controller >= 0 ) {
         /* In shared mode, we need to set the shrub controller on the filter so
          * that it gets steered to the right place. */
-        rc = ef_filter_spec_set_shrub(&spec, sti->sti_shrub_controller, -1);
+        rc = ef_filter_spec_set_shrub(&spec, sti->sti_shrub_controller,
+                                       sti->sti_shrub_controller_buffers);
         if ( rc < 0 )
           goto fail;
       }
