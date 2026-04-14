@@ -295,11 +295,15 @@ zfrr_hw_filter_init(struct zf_stack* st, zfrr_nic_mask nics, int proto,
       ef_filter_spec_init(&spec, flags);
       zfrr_hw_filter_init_vlan(st, nic, proto, laddr, &spec);
 
-      if( st->x4_shared_mode && sti->sti_shrub_controller >= 0 )
+      if( st->x4_shared_mode && sti->sti_shrub_controller >= 0 ) {
         /* In shared mode, we need to set the shrub controller on the filter so
          * that it gets steered to the right place. */
         rc = ef_filter_spec_set_shrub(&spec, sti->sti_shrub_controller, -1);
-      else if( raddr != NULL )
+        if ( rc < 0 )
+          goto fail;
+      }
+
+      if( raddr != NULL )
         rc = ef_filter_spec_set_ip4_full(&spec, proto, laddr->sin_addr.s_addr,
                                          laddr->sin_port,
                                          raddr->sin_addr.s_addr,
