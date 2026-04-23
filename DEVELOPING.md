@@ -21,6 +21,13 @@ export ONLOAD_TREE={path to the checked out onload repository}
 make
 ```
 
+Building TCPDirect from the repository will enable debugging mode (providing
+additional logging) by default. This can be disabled by explicitly passing the
+following argument to make:
+```bash
+NDEBUG=1
+```
+
 ### Packaging
 
 #### SRPM instructions
