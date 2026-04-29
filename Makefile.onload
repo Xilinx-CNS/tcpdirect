@@ -46,7 +46,7 @@ build_dir: $(ONLOAD_UL_BUILD_DIR)
 $(COMPAT_HDR) $(CITOOLS_LIB) $(CIUL_LIB): build_dir
 	$(MAKE) -C $(dir $@) $(ONLOAD_CFLAGS)
 
-$(CIUL_LIB): $(COMPAT_HDR)
+$(CIUL_LIB): $(COMPAT_HDR) $(ONLOAD_VERSION_HDR)
 
 clean_onload:
 	$(MAKE) clean -C $(ONLOAD_UL_BUILD_DIR)
