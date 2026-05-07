@@ -1,5 +1,12 @@
-TCPDirect-9.1.1
+TCPDirect-9.2.0
 ===============
+
+  This is a release of TCPDirect to accompany Onload-9.2.0.
+  There are no code changes.
+
+
+TCPDirect-9.1.1.11
+==================
 
   This is an update release of TCPDirect to accompany Onload-9.1.1.
   See changelog for details.
