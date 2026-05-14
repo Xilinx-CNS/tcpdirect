@@ -200,6 +200,16 @@ ZF_ATTR(int, tx_error_recovery, stable, 1, "on",
         "Defines whether a stack should attempt to recover from a TX error "
         "event. (enabled by default)")
 
+ZF_ATTR(int, disable_vlan_filter_cap, stable, 0, "off",
+        "zf_stack",
+
+        "Disable VLAN filter capability on stack initialisation. "
+        "When set to 1, the VLAN filter flag is not set on the NIC even if "
+        "the hardware reports support for it, so VLAN filtering is not applied "
+        "to RX filter specs. "
+        "Values: 0 - use hardware capability (default), "
+        "1 - suppress VLAN filter capability.")
+
 
 /**********************************************************************
  * zf_vi attributes.
