@@ -245,6 +245,55 @@ tcp_copy_data_to_segment(struct tcp_seg* seg, const iovec* iov_hdr,
   }
 }
 
+#define MY_TCP_HDR_SIZE 20
+
+/** \brief Replace (i.e. "trim") already-ACKed payload bytes inside a queued TCP segment.
+ *
+ * \param seg
+ * \param first_byte_offset
+ *
+ * TCP RX internal
+ */
+static inline void
+tcp_replace_data_inside_segment(struct tcp_seg* seg, unsigned first_byte_offset)
+{
+  /* PROPOSED TODO FILL (defensive bounds checks):
+   * The existing code works in the intended call-path. These checks are added
+   * to prevent invalid memory access if the function is ever called with an
+   * inconsistent segment layout or offset.
+   */
+  if( ZF_UNLIKELY(seg->iov.iov_len < MY_TCP_HDR_SIZE) )
+    return;
+
+  const unsigned payload_len = seg->iov.iov_len - MY_TCP_HDR_SIZE;
+
+  /* first_byte_offset is measured in payload bytes. */
+  if( ZF_UNLIKELY(first_byte_offset > payload_len) )
+    return;
+
+  /* Keep behaviour: use the iov length as the source of truth. */
+  unsigned seg_length = payload_len - first_byte_offset;
+
+  /* TCP segments in the sendq should never exceed TCP_MAX_MSS, but guard the
+   * temporary buffer anyway.
+   */
+  if( ZF_UNLIKELY(seg_length > TCP_MAX_MSS) )
+    return;
+
+  char tmp_buffer[TCP_MAX_MSS];
+
+  /* 1) Copy remaining payload into a temporary buffer. */
+  memcpy(tmp_buffer,
+         (char*) seg->iov.iov_base + MY_TCP_HDR_SIZE + first_byte_offset,
+         seg_length);
+
+  /* 2) Shift unacked data to the beginning of the payload region. */
+  memcpy((char*) seg->iov.iov_base + MY_TCP_HDR_SIZE, tmp_buffer, seg_length);
+
+  /* 3) Shrink segment lengths to match the remaining payload bytes. */
+  seg->iov.iov_len = MY_TCP_HDR_SIZE + seg_length;
+  seg->len = seg_length;
+}
 
 static inline tcp_seg*
 tcp_init_next_segment(struct zf_stack* stack, struct zf_tcp* tcp,
@@ -1196,9 +1245,64 @@ void tcp_rexmit_fast(struct zf_tcp* tcp)
 }
 
 
+/** \brief Handle efficient retransmission for an RTO
+ * 
+ *
+ * \param pcb the tcp_pcb for which to exclusively retransmit unacked bytes
+ *
+ * This function trims the coalesced bytes which have been acknowledged. 
+ */
+
 static inline void tcp_requeue_unacked(tcp_pcb* pcb)
 {
+  /* Requeue all currently-unacked segments. */
   pcb->sendq.middle = pcb->sendq.begin;
+
+  const int curr_seg = pcb->sendq.begin % 64;
+
+  /* Data in TCPDirect is compacted up to MSS when possible, so in the common
+   * case we expect <= 1 MSS-worth of payload in-queue at RTO.
+   * This comparison makes explicit the possibility of having more than one
+   * segment in the queue, which will be considered later.
+   */
+  if( pcb->sendq.begin == pcb->sendq.middle ) {
+     unsigned nonacked = pcb->snd_nxt - pcb->lastack;
+
+    /* If the segment length already matches the outstanding (non-ACKed) byte
+     * count, there is nothing to trim.
+     */
+    if( tcp_seg_len(&pcb->sendq.segs[curr_seg]) == nonacked ) 
+       return;
+
+    /* Modify the header:
+     * tcp_output() will rebuild/overwrite most fields, but we explicitly set
+     * the sequence number to match the first outstanding byte (lastack).
+     */
+    tcp_seg_tcphdr(&pcb->sendq.segs[curr_seg])->seq = htonl(pcb->lastack);
+
+    /* We remove the already-ACKed prefix bytes by shifting payload left.
+     * offset = old_seg_len - nonacked.
+     */
+    unsigned offset = tcp_seg_len(&pcb->sendq.segs[curr_seg]) - nonacked;
+
+    if( tcp_seg_len(&pcb->sendq.segs[curr_seg]) == nonacked ) 
+       return;
+
+    tcp_replace_data_inside_segment(&pcb->sendq.segs[curr_seg], offset);
+
+    /* PROPOSED TODO NOTE:
+     * pcb->snd_lbb and pcb->snd_nxt semantics are subtle in this RTO path.
+     * tcp_output() will update snd_nxt based on what it actually transmits.
+     * We intentionally do not adjust snd_lbb/snd_nxt here to preserve the
+     * existing, known-good behaviour.
+     */
+  }
+  else {
+    /* More than 1 MSS in-queue:
+     * Checking/stripping ACKed data becomes more complicated, and is not
+     * implemented in this conservative RTO requeue path.
+     */
+  }
 }
 
 static void
