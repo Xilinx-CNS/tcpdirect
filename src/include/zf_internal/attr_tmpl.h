@@ -363,6 +363,12 @@ ZF_ATTR(int, shrub_controller, stable, -1, NULL,
         "TCPDirect expects the shrub controller to be spawned manually separately to \n"
         "the application using the zf_stack.")
 
+ZF_ATTR(int, shrub_controller_buffers, stable, -1, NULL,
+        "zf_vi",
+
+        "Specify the number of buffers to request from the shrub controller. \n"
+        "A value of -1 means use the default number of buffers.")
+
 ZF_ATTR(str, tph_mode, stable, "off", "off",
         "zf_vi",
 
