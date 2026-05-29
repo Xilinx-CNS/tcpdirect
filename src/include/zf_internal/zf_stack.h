@@ -43,6 +43,9 @@ static const zf_stack_flag ZF_STACK_FLAG_TCP_WAIT_FOR_TIME_WAIT = 0x2;
 static const zf_stack_flag ZF_STACK_FLAG_TCP_FIN_WAIT_TIMEOUT_DISABLED = 0x4;
 static const zf_stack_flag ZF_STACK_FLAG_TRANSMIT_WARM_ENABLED = 0x8;
 
+// TODO: keepalive
+static const zf_stack_flag ZF_STACK_FLAG_TCP_NO_KEEPALIVE = 0x10;
+
 #ifdef ZF_DEVEL
 /* disable sending for debug purposes */
 static const zf_stack_flag ZF_STACK_FLAG_DEVEL_NO_TX = 0x80;

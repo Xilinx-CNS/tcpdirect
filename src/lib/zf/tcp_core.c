@@ -169,6 +169,8 @@ void tcp_do_transition(struct zf_tcp* tcp, enum tcp_state new_state)
 
     zf_muxer_mark_waitable_ready(&tcp->w, EPOLLIN | EPOLLOUT | EPOLLHUP);
     zf_tcp_timers_timer_stop(tcp, ZF_TCP_TIMER_ZWIN);
+    // Stop keepalive as it's we enter in TIME_WAIT when Initial timer is running
+    zf_tcp_timers_timer_stop(tcp, ZF_TCP_KEEPALIVE_TIME_MS);
     zf_tcp_timers_timer_start(tcp, ZF_TCP_TIMER_TIMEWAIT,
                               zf_tcp_timers_timewait_timeout(stack));
     break;
@@ -802,11 +804,12 @@ tcp_dump(struct zf_tcp* tcp)
           pcb->rttest, pcb->rtseq, pcb->sa, pcb->sv);
   zf_dump("  cong: nrtx=%u dupacks=%u persist_backoff=%u\n",
           pcb->nrtx, pcb->dupacks, pcb->persist_backoff);
-  zf_dump("  timers: %s%s%s%s\n",
+  zf_dump("  timers: %s%s%s%s%s\n",
           pcb->timers.running & (1<<ZF_TCP_TIMER_RTO) ? "RTO " : "",
           pcb->timers.running & (1<<ZF_TCP_TIMER_DACK) ? "DACK " : "",
           pcb->timers.running & (1<<ZF_TCP_TIMER_ZWIN) ? "ZWIN " : "",
-          pcb->timers.running & (1<<ZF_TCP_TIMER_TIMEWAIT) ? "TIMEWAIT " : "");
+          pcb->timers.running & (1<<ZF_TCP_TIMER_TIMEWAIT) ? "TIMEWAIT " : "",
+          pcb->timers.running & (1<<ZF_TCP_TIMER_KEEPALIVE) ? "KEEPALIVE " : "");
   zf_dump("  ooo: added=%u removed=%u replaced=%u\n", pcb->ooo_added,
           pcb->ooo_removed, pcb->ooo_replaced);
   zf_dump("  ooo: handling_deferred=%u dropped_nomem=%u drop_overfilled=%u\n",
