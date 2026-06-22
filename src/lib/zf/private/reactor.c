@@ -320,7 +320,7 @@ zf_reactor_wait_for_rx_event(struct zf_stack* stack, int nic, pkt_id packet_id,
      * for at least EF_VI_EVENT_POLL_MIN_EVS events, but on EF10 it's safe to
      * ignore this. */
     ef_event ev;
-    unsigned n_ev = ef_eventq_poll(vi, &ev, 1);
+    unsigned n_ev = ef_future_eventq_poll(vi, &ev, 1);
     if( n_ev > 0 ) {
       zf_assume_equal(n_ev, 1);
       auto ev_type = EF_EVENT_TYPE(ev);
