@@ -511,6 +511,8 @@ static int zf_attr_set_from_sysctl(struct zf_attr* attr)
     attr->tcp_finwait_ms  = 1000 * opt[0];
   }
 
+  //TODO: placeholder for setting keepalive from kernel values
+
   if( zf_sysctl_get_values("net/ipv4/tcp_syn_retries", opt, 1, 0) == 0 )
     attr->tcp_syn_retries = opt[0];
 

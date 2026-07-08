@@ -734,11 +734,30 @@ void tcp_configure_rto_zwin_timers(struct zf_tcp* tcp)
       pcb->persist_backoff = 0;
       zf_tcp_timers_timer_start(tcp, ZF_TCP_TIMER_ZWIN,
                                 tcp_timers_zwin_timeout(tcp));
+    } else if( ! zf_tcp_timers_timer_is_active(tcp, ZF_TCP_TIMER_ZWIN)) {
+      struct zf_stack* stack = zf_stack_from_zocket(tcp);
+      tcp->pcb.flags |= (TF_ACK_KEEPALIVE);
+      tcp->pcb.sent_probes=0;
+      // TODO: keepalive: check that the timer is not restarting forever and SYN sent not getting a
+      // TODO:            reply is correctly handled by SYN retry algorithm.
+      zf_tcp_timers_timer_start(tcp, ZF_TCP_TIMER_KEEPALIVE,
+                                zf_tcp_timers_keepalive_time_timeout(stack));
     }
   }
-  else
+  else {
+   // TODO:   RTO should only be started when data segments being queued. 
+   //         But I wonder if control packets or ACKs that are queued will get 
+   //         into this part of the code; which makes the transition between 
+   //         states more tricky. Aparently it is not the case (simple removal and
+   //         test does not get into this case).
+   //           
+   if( zf_tcp_timers_timer_is_active(tcp, ZF_TCP_TIMER_KEEPALIVE) ) {
+      zf_tcp_timers_timer_stop(tcp, ZF_TCP_TIMER_KEEPALIVE);
+      tcp->pcb.sent_probes=0;
+   }
     zf_tcp_timers_timer_start(tcp, ZF_TCP_TIMER_RTO,
                               zf_tcp_timers_rto_timeout(tcp));
+  }
 }
 
 /* Returns the configured initial congestion window, or 10 * MSS by default. */
@@ -842,6 +861,11 @@ bool tcp_process(struct zf_tcp* tcp, struct tcp_seg* seg, uint8_t* recv_flags)
     return false;
   }
   
+  // TODO: keepalive cancel timer (it might imply different things depending on the TCP state!)
+  // TODO: it is still missing a study of the different implications
+  if ( pcb->flags & TF_ACK_KEEPALIVE )
+      tcp_tx_cancel_keep_alive(tcp);
+
   /* Do different things depending on the TCP state. */
   switch (pcb->state) {
   case SYN_SENT:
@@ -1127,6 +1151,11 @@ tcp_frequent_sync_path(zf_stack* st, zf_tcp* tcp, struct tcphdr* tcp_hdr,
 
   tcp_dack_flags_flick(pcb);
 
+  // TODO: keepalive 
+  // cancel keepalive timer (along with delayed ack flag flick)
+  if ( pcb->flags & TF_ACK_KEEPALIVE )
+      tcp_tx_cancel_keep_alive(tcp);
+  
   /* Announced window must be updated after payload has been queued,
    * including if this happened earlier in the cut-through case. */
   tcp_update_rcv_ann_wnd(pcb);

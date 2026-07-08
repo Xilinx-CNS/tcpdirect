@@ -206,4 +206,16 @@ zf_tcp_timers_finwait_timeout(struct zf_stack* stack)
   return stack->config.tcp_finwait_ticks;
 }
 
+static inline zf_tick
+zf_tcp_timers_keepalive_time_timeout(struct zf_stack* stack)
+{
+  return stack->config.tcp_keepalive_time_ticks;
+}
+
+static inline zf_tick
+zf_tcp_timers_keepalive_intvl_timeout(struct zf_stack* stack)
+{
+  return stack->config.tcp_keepalive_intvl_ticks;
+}
+
 #endif /* __ZF_INT_TCP_TIMERS_H__ */

@@ -276,6 +276,10 @@ struct zf_stack_impl {
   int sti_tcp_alt_ack_rewind;
   int sti_tcp_delayed_ack;
   int sti_tcp_finwait_ms;
+  // TODO: keepalive
+  int sti_tcp_keepalive;
+  int sti_tcp_keepalive_time_ms;
+  int sti_tcp_keepalive_intvl_ms;
   int sti_tcp_timewait_ms;
   int sti_tcp_wait_for_time_wait; 
   int sti_tx_ring_max;

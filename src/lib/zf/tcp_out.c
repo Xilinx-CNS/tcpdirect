@@ -842,6 +842,9 @@ int tcp_send_empty_ack(struct zf_tcp* tcp, bool zero_win_probe)
   zf_log_tcp_tx_trace(tcp, "%s: sending ACK for %u rcv ann win %u\n",
                       __func__, tcp->pcb.rcv_nxt, pcb->rcv_ann_wnd);
 
+  printf("%s: sending ACK for %u rcv ann win %u\n",
+                      __func__, tcp->pcb.rcv_nxt, pcb->rcv_ann_wnd);
+
   zf_tx_iphdr(&tcp->tst)->tot_len = htons(TCP_HLEN + IP_HLEN);
 
   tcp_send_with_tcp_header(tcp, 0, 0,
@@ -1316,6 +1319,34 @@ tcp_tmr(struct zf_tcp* tcp, int timers_expired)
     zf_log_timer_trace(tcp, "%s: finwait\n", __func__);
     tcp_finwait_timeout(stack, tcp);
     return event_occurred;
+  }
+
+  // TODO: check when this does not expire because it is constantly reset upon ACK / DATA arrival. 
+  // TODO: check how this timer interacts with RTO.
+  if( timers_expired & (1u << ZF_TCP_TIMER_KEEPALIVE)) {
+    // TODO: for now, just report the timer expiring:
+    zf_log_timer_trace(tcp, "%s: keepalive\n", __func__);
+    // IMO keepalive should not interfere with possible RTO firing as 
+    // RTO implies retransmissions.
+
+    printf("sent probes: %i.\n", pcb->sent_probes);
+
+    if ( pcb->sent_probes >= stack->config.tcp_keepalive_probes ) {
+       zf_log_timer_trace(tcp, "%s: Resetting connection due Lack of response upon keep alive check.\n", __func__);
+       printf("Resetting connection due Lack of response upon keep alive check.\n");
+
+       return event_occurred; 
+    }
+
+    pcb->sent_probes++;
+    
+    if( pcb->flags & TF_ACK_KEEPALIVE ) {
+      tcp_send_empty_ack(tcp, true); // True is for zwin probing, but may do the trick.
+      zf_tcp_timers_timer_start(tcp, ZF_TCP_TIMER_KEEPALIVE, 
+                                zf_tcp_timers_keepalive_intvl_timeout(stack));
+      printf("Sending probe #%i.\n", pcb->sent_probes);
+    }
+
   }
 
   if( ~timers_expired & (1u << ZF_TCP_TIMER_RTO))
