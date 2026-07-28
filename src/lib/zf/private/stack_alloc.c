@@ -657,12 +657,6 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
     return -EINVAL;
   }
 
-  rc = setenv("EF_SHRUB_CONTROLLER", shrub_controller_char , 1);
-  if ( rc != 0 && shrub_controller != -1 ) {
-    zf_log_stack_err(st, "Failed to set EF_SHRUB_CONTROLLER environment variable\n");
-    return -EINVAL;
-  }
-
   if ( phys_address_mode ) {
       rc = ef_vi_capabilities_get_from_pd_flags(
              sti_nic->dh, ifindex, (ef_pd_flags)(pd_flags | EF_PD_PHYS_MODE),
@@ -972,6 +966,7 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   sti->sti_rx_datapath = rx_datapath;
   sti->sti_phys_address_mode = phys_address_mode;
   sti->sti_shrub_controller = shrub_controller;
+  sti->sti_shrub_controller_buffers = attr->shrub_controller_buffers;
   sti->sti_tx_error_recovery = attr->tx_error_recovery;
 
   strncpy(sti->sti_ctpio_mode, attr->ctpio_mode, 8);

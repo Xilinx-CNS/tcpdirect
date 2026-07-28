@@ -289,6 +289,7 @@ struct zf_stack_impl {
   int sti_rx_datapath;
   int sti_phys_address_mode;
   int sti_shrub_controller;
+  int sti_shrub_controller_buffers;
   uint64_t sti_log_level;
   bool sti_tx_error_recovery;
   
