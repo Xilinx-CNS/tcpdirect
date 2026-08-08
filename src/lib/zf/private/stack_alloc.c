@@ -561,7 +561,9 @@ static void zf_stack_init_state(struct zf_stack_impl* sti,
 }
 
 
-static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
+static int zf_stack_init_nic_capabilities(struct zf_stack* st,
+                                          const struct zf_attr* attr,
+                                          int nicno)
 {
   struct zf_stack_impl* sti = ZF_CONTAINER(struct zf_stack_impl, st, st);
   unsigned long vlan_filters;
@@ -604,7 +606,7 @@ static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
 
   rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_RX_FILTER_TYPE_IP_VLAN,
                               &vlan_filters);
-  if( rc == 0 && vlan_filters != 0 )
+  if( rc == 0 && vlan_filters != 0 && !attr->disable_vlan_filter_cap )
     sti->nic[nicno].flags |= ZF_RES_NIC_FLAG_VLAN_FILTERS;
 
   return 0;
@@ -678,7 +680,7 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
     goto fail0;
   }
 
-  rc = zf_stack_init_nic_capabilities(st, nicno);
+  rc = zf_stack_init_nic_capabilities(st, attr, nicno);
   if( rc < 0 )
     goto fail1;
 
