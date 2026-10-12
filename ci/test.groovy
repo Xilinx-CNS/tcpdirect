@@ -12,7 +12,7 @@ import com.solarflarecom.onload.publishing.ArtifactoryPublisher
 
 import groovy.transform.Field
 
-def orgfilesRepo = 'ssh://git@github.com/Xilinx-CNS/tcpdirect_jenkins_orgfiles.git'
+def orgfilesRepo = 'https://github.com/AMD-NTSG-X/tcpdirect_jenkins_orgfiles.git'
 
 @Field
 def nm = new NotificationManager(this)
