@@ -7,6 +7,7 @@ import com.solarflarecom.onload.utils.UtilityManager
 import com.solarflarecom.onload.autosmoke.AutosmokeManager
 import com.solarflarecom.onload.test.TestManager
 import com.solarflarecom.onload.scm.SCMManager
+import com.solarflarecom.onload.publishing.ArtifactoryPublisher
 
 
 import groovy.transform.Field
@@ -23,29 +24,9 @@ def tm = new TestManager(this)
 @Field
 def scmmanager = new SCMManager(this)
 
-Properties get_version_info(String tcpdirect_dir) {
-  String versionsFileContents = readFile("${tcpdirect_dir}/versions.env")
-  Properties props = new Properties()
-  props.load(new StringReader(versionsFileContents))
-  if( ! props.containsKey("TCPDIRECT_VERSION") ) {
-    error("Failed to extract TCPDirect version")
-  }
-  props.TCPDIRECT_VERSION = "${props.TCPDIRECT_VERSION}.${env.BUILD_NUMBER}"
-  return props
-}
-
-void extractNotes(String scripts_dir, String tarball) {
-  sh "${scripts_dir}/tcpdirect_misc/tcpdirect-extract-notes ${tarball}"
-}
-
-void zip_and_archive_files(String zipfile, String ... files_to_zip) {
-  def cmd = [ 'zip', '-j', "'${zipfile}'" ]
-  cmd += files_to_zip.collect { f -> "${f}" }
-  sh(cmd.join(' '))
-  archiveArtifacts(zipfile)
-}
-
 nm.slack_notify() {
+  def pipeline_class
+  def pipeline
   def scmVars
   boolean personal_job = ! env.JOB_NAME.startsWith('tcpdirect/')
 
@@ -65,8 +46,14 @@ nm.slack_notify() {
       // checkout tcpdirect in subfolder
       dir('tcpdirect') {
         scmVars = scmmanager.cloneGit(scm)
+
+        /* Groovy pipeline shenanigans */
+        pipeline_class = load 'ci/pipeline.groovy'
       }
-      version_info = get_version_info("tcpdirect")
+
+      pipeline = pipeline_class.create_pipeline(this, utils)
+
+      version_info = pipeline.get_version_info("tcpdirect")
       echo "Got revision ${scmVars.GIT_COMMIT}"
 
       stash(name: 'tcpdirect-src', includes: 'tcpdirect/**', useDefaultExcludes: true)
@@ -79,171 +66,39 @@ nm.slack_notify() {
     }
   }
 
-  stage('Parallel builds') {
-    utils.parallel(
-      'build ndebug': {
-        node('unit-test-parallel') {
-          sh 'rm -fr tcpdirect onload'
-          unstash('tcpdirect-src')
-          unstash('onload-src')
-          sh 'ls -lad $PWD'
-          def CC = sh(script: 'ls -1d /opt/rh/devtoolset-{11,10,9,8}/root/usr/bin/cc $(which cc) 2>/dev/null | head -1',
-                      returnStdout: true)
-          sh """#!/bin/bash
-            export CC=${CC}
-            export ONLOAD_TREE=\$PWD/onload
-            export NDEBUG=1
-            make -C tcpdirect
-          """
-          
-          // FIXME stash libraries to publish later
-          // including a package with debug
-        }
-      },
-      'build libzf_sockets': {
-        // This step produces artifacts, so let's have it build with predictable environment
-        node('build && centos7') {
-          sh 'rm -fr tcpdirect onload'
-          unstash('tcpdirect-src')
-          unstash('onload-src')
-          sh 'ls -lad $PWD'
-          def CC = sh(script: 'ls -1d /opt/rh/devtoolset-{11,10,9,8}/root/usr/bin/cc $(which cc) 2>/dev/null | head -1',
-                      returnStdout: true)
-          sh """#!/bin/bash
-            export CC=${CC}
-            export ONLOAD_TREE=\$PWD/onload
-            export NDEBUG=1
-            export ZF_DEVEL=1
-            make -C tcpdirect shim
-          """
-          dir('tcpdirect/build/gnu_x86_64-zf-devel/lib/') {
-            stash(
-              name: "zf-libzf_sockets",
-              includes: 'libzf_sockets.so',
-            )
-          }
-          
-        }
-      },
-      'run tests': {
-        node('unit-test-parallel') {
-          sh 'rm -fr tcpdirect onload packetdrill-tcpdirect test-results'
-          unstash('tcpdirect-src')
-          unstash('onload-src')
-          sh 'ls -lad $PWD'
-          def CC = sh(script: 'ls -1d /opt/rh/devtoolset-{11,10,9,8}/root/usr/bin/cc $(which cc) 2>/dev/null | head -1',
-                      returnStdout: true)
-          dir('test-results') { // ensure folder exists
-          }
-          // Makefiles do not support gcov build yet
-          def rc = sh(script: """#!/bin/bash
-            export CC=${CC}
-            export ONLOAD_TREE=\$PWD/onload
-            export ZF_DEVEL=1
-	    export ZF_RUN_UNSTABLE_TESTS=1
-	    export ZF_RUN_SLOW_TESTS=1
-            export TEST_THREAD_NAME=zf
-            make -k -C tcpdirect test
-          """, returnStatus: true)
-          if (rc != 0) {
-            unstable("not all tests passed")
-          }
-        }
-      },
-    )
-  }
+  def built_package_locations = pipeline.doPipeline('tcpdirect-src',
+                                                    'onload-src',
+                                                    'onload-tar',
+                                                    onload_tarball,
+                                                    version_info)
 
-  // This step produces release artifacts, must be run in controlled environment
-  node('build && centos7') {
-    stage("Build TCPDirect Tarball") {
-      sh 'rm -fr tcpdirect onload'
-      unstash('tcpdirect-src')
-      unstash('onload-tar')
-      sh 'ls -lad $PWD'
-      def CC = sh(script: 'ls -1d /opt/rh/devtoolset-{11,10,9,8}/root/usr/bin/cc $(which cc) 2>/dev/null | head -1',
-                    returnStdout: true)
-      sh """#!/bin/bash
-        export CC=${CC}
-        tcpdirect/scripts/zf_mkdist --version ${version_info.TCPDIRECT_VERSION} --name tcpdirect ${onload_tarball}
-      """
-      extractNotes("tcpdirect/scripts", "tcpdirect/build/tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz")
-      dir('tcpdirect/build/') {
-        archiveArtifacts(artifacts: '*.tgz')
-        archiveArtifacts(artifacts: '*.md5')
-        archiveArtifacts(artifacts: '*.txt')
-        sh 'rm *ReleaseNotes.txt'
-        stash name: 'text_files', includes: '*.txt'
-        zip_and_archive_files(
-          "tcpdirect-${version_info.TCPDIRECT_VERSION}-tarball-doxbox.zip",
-          '*.tgz',
-          '*.md5',
-          '*.txt'
-        )
-        stash(
-          name: "tcpdirect-release-tarball",
-          includes: "tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz",
-        )
-      }
-      stash(name: "tcpdirect-build-artifacts", includes: "tcpdirect/build/artifacts/**")
-    }
-
-    stage('Archive unstripped binaries') {
-      sh "tcpdirect/scripts/zf_make_tarball --version ${version_info.TCPDIRECT_VERSION} --unstripped"
-      dir('tcpdirect/build/') {
-        archiveArtifacts artifacts: '*unstripped*.tgz', allowEmptyArchive: true
-        sh 'rm -f *unstripped*.tgz'
+  // Publish packages to Artifactory
+  def VERSION = version_info.TCPDIRECT_VERSION
+  def long_revision = scmVars.GIT_COMMIT
+  
+  node('master') {
+    stage('Publish to Artifactory') {
+      def publisher = new ArtifactoryPublisher(this)
+      def branch_name = env.BRANCH_NAME.toLowerCase().replaceAll('^v', '').replace('_', '.')
+      def branch_with_product = "tcpdirect-${branch_name}"
+      
+      echo "Branch: ${env.BRANCH_NAME}, Personal job: ${personal_job}"
+      echo "VERSION: ${VERSION}, revision: ${long_revision}"
+      
+      utils.withArtifactoryURL() {
+        utils.withArtifactoryCreds() {
+          echo "Publishing TCPDirect packages to Artifactory..."
+          publisher.publishStashedPackages('tcpdirect', built_package_locations, branch_with_product, VERSION, long_revision)
+        }
       }
     }
-  }
-
-  stage('Build packages') {
-    utils.parallel(
-      "publish release rpm": {
-        node("publish-rpm-parallel") {
-          deleteDir()
-          unstash('tcpdirect-release-tarball')
-          unstash('tcpdirect-src')
-          sh "tcpdirect/scripts/zf_make_official_srpm tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz --version ${version_info.TCPDIRECT_VERSION}"
-          archiveArtifacts allowEmptyArchive: true, artifacts: '*.src.rpm', followSymlinks: false
-          unstash('text_files')
-          zip_and_archive_files(
-          "tcpdirect-${version_info.TCPDIRECT_VERSION}-srpm-doxbox.zip",
-          '*.src.rpm',
-          '*.txt'
-        )
-        }
-      },
-      "publish release deb": {
-        node("deb") {
-          stage('stage installation') {
-            deleteDir()
-            unstash('tcpdirect-release-tarball')
-            sh "tar xvzf tcpdirect-${version_info.TCPDIRECT_VERSION}.tgz"
-            sh "tcpdirect-${version_info.TCPDIRECT_VERSION}/scripts/zf_install --packaging --dest-dir staging/usr"
-            stash(name: "tcpdirect-staged-installation", includes: "staging/**")
-          }
-          stage('build deb') {
-            deleteDir()
-            unstash('tcpdirect-staged-installation')
-            unstash('tcpdirect-src')
-            sh "tcpdirect/scripts/zf_make_official_deb --version ${version_info.TCPDIRECT_VERSION} staging"
-            archiveArtifacts allowEmptyArchive: true, artifacts: '*.deb', followSymlinks: false
-            unstash('text_files')
-            zip_and_archive_files(
-              "tcpdirect-${version_info.TCPDIRECT_VERSION}-deb-doxbox.zip",
-              '*.deb',
-              '*.txt'
-            )
-          }
-        }
-      }
-    )
   }
 
   // this uses 'runbench' node internally
   am.doAutosmoke(version_info.ONLOAD_REPO_SOURCE, version_info.ONLOAD_VERSION,
                  'last_known_good/' + version_info.ONLOAD_VERSION,
                  orgfilesRepo, personal_job, true, am.sourceUrl(), env.BRANCH_NAME)
+
 }
 
 
