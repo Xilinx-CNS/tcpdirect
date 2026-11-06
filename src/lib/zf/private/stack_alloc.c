@@ -752,8 +752,14 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
     else
       st_nic->rx_prefix_len = ef_vi_receive_prefix_len(&st_nic->vi);
 
-    zf_assume(st_nic->rx_prefix_len == 0 ||
-              st_nic->rx_prefix_len == ES_DZ_RX_PREFIX_SIZE);
+    if( st_nic->rx_prefix_len != 0 &&
+        st_nic->rx_prefix_len != ES_DZ_RX_PREFIX_SIZE ) {
+      zf_log_stack_err(st, "Unsupported rx_prefix_len=%d: firmware may be "
+                           "incompatible (e.g. packed-stream mode)\n",
+                       st_nic->rx_prefix_len);
+      rc = -ENODEV;
+      goto fail2;
+    }
 
     ef_vi_receive_set_buffer_len(&st_nic->vi, PKT_BUF_SIZE_USABLE);
   }
