@@ -97,6 +97,7 @@ enum zf_tcp_timer_type {
   ZF_TCP_TIMER_ZWIN,
   ZF_TCP_TIMER_TIMEWAIT,
   ZF_TCP_TIMER_FINWAIT = ZF_TCP_TIMER_TIMEWAIT,
+  ZF_TCP_TIMER_KEEPALIVE,
   ZF_TCP_TIMER_COUNT,
 };
 #define ZF_TCP_ALL_TIMERS ( (1u<<ZF_TCP_TIMER_COUNT) - 1)
@@ -194,6 +195,8 @@ struct tcp_pcb {
 #define TF_INFR        ((uint16_t)0x04U)   /* In fast recovery. */
 #define TF_ACK_NEXT    ((uint16_t)0x08U)   /* ACK next segment immediately. */
 /* 0x40u and 0x80u are available for reuse. */
+// TODO: keepalive
+#define TF_ACK_KEEPALIVE ((uint16_t)0x40U) /* Keepalive ACK. */
 #define TF_ON          ((uint16_t)0x100U) /* hack: flag is always on */
 #define TF_FASTSEND_DBG ((uint16_t)0x200U) /* tracks fast send precomputation */
 
@@ -227,6 +230,9 @@ struct tcp_pcb {
 
   uint8_t nrtx;    /* current number of retransmissions */
   uint8_t persist_backoff; /* number of subsequent zwin probe retries */
+
+  /* Keepalive probe counter */
+  uint8_t sent_probes;
 
   /* fast retransmit/recovery */
   uint8_t dupacks;

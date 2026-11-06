@@ -532,10 +532,18 @@ static void zf_stack_init_state(struct zf_stack_impl* sti,
     st->flags |= ZF_STACK_FLAG_TCP_NO_DELACK;
   if( attr->tcp_wait_for_time_wait )
     st->flags |= ZF_STACK_FLAG_TCP_WAIT_FOR_TIME_WAIT;
+  // TODO: keepalive
+  if ( ! attr->tcp_keepalive )
+    st->flags |= ZF_STACK_FLAG_TCP_NO_KEEPALIVE;
 
   st->config.tcp_timewait_ticks = attr->tcp_timewait_ms / TCP_TMR_INTERVAL;
   st->config.tcp_finwait_ticks = attr->tcp_finwait_ms / TCP_TMR_INTERVAL;
+  //TODO: keepalive above-values should be included in the zf_stackdump as well
+  st->config.tcp_keepalive_time_ticks = attr->tcp_keepalive_time_ms / TCP_TMR_INTERVAL;
+  st->config.tcp_keepalive_intvl_ticks = attr->tcp_keepalive_intvl_ms / TCP_TMR_INTERVAL;
+  st->config.tcp_keepalive_probes = attr->tcp_keepalive_probes;
 
+  // TODO: there should be a way to disable keepalive
   if( attr->tcp_finwait_ms == 0 )
     st->flags |= ZF_STACK_FLAG_TCP_FIN_WAIT_TIMEOUT_DISABLED;
 
@@ -959,6 +967,10 @@ int zf_stack_alloc(struct zf_attr* attr, struct zf_stack** stack_out)
   sti->sti_tcp_alt_ack_rewind = attr->tcp_alt_ack_rewind;
   sti->sti_tcp_delayed_ack = attr->tcp_delayed_ack;
   sti->sti_tcp_finwait_ms = attr->tcp_finwait_ms;
+  // TODO: keepalive
+  sti->sti_tcp_keepalive = attr->tcp_keepalive;
+  sti->sti_tcp_keepalive_time_ms = attr->tcp_keepalive_time_ms;
+  sti->sti_tcp_keepalive_intvl_ms = attr->tcp_keepalive_intvl_ms;
   sti->sti_tcp_timewait_ms = attr->tcp_timewait_ms;
   sti->sti_tcp_wait_for_time_wait = attr->tcp_wait_for_time_wait; 
   sti->sti_tx_timestamping = attr->tx_timestamping;
