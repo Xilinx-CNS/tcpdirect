@@ -1,5 +1,11 @@
-tcpdirect-9.2.1
+tcpdirect-9.2.2
 ---------------
+
+No code changes.
+
+
+tcpdirect-9.2.1.5
+-----------------
 
 ON-17429: fix potential for bad packet data on X3 with multiple RXQs in use
 
