@@ -533,6 +533,44 @@ static int zf_reactor_process_tx_vi(struct zf_stack* st, int nic, ef_vi* vi)
   return got_it;
 }
 
+
+ZF_HOT static inline bool
+zfr_future_headers_present(struct zf_stack* st, int nic, char* packet)
+{
+  if( ! zfr_packet_header_present(packet) )
+    return false;
+
+  char* eth_hdr_base = packet + st->nic[nic].rx_prefix_len;
+  const struct iphdr* ip = zf_ip_hdr(eth_hdr_base);
+
+  uint16_t h_protocol = *((uint16_t*)ip - 1);
+
+  if(ZF_UNLIKELY( h_protocol != zf_htons(ETH_P_IP) ))
+    return true;
+
+  /* VLAN traffic may have its second cache line evicted by competing
+   * traffic, so check that the header bytes landing in the second line
+   * have actually arrived. */
+  size_t l4_hdr_len;
+
+  if( ip->protocol == IPPROTO_TCP )
+    l4_hdr_len = TCP_HLEN;
+  else if( ip->protocol == IPPROTO_UDP )
+    l4_hdr_len = UDP_HLEN;
+  else
+    return true;
+
+  size_t hdr_size = (const char*)ip - packet + ip->ihl * 4 + l4_hdr_len;
+
+  /* Header fits in a single NIC write block: nothing more to check. */
+  if( hdr_size <= NIC_RX_BUFFER_WRITE_SIZE )
+    return true;
+
+  /* Check the portion of the header in the second write block. */
+  return zfr_packet_portion_present(packet, hdr_size);
+}
+
+
 /* Rx ring refilling
  *   Ring is attempted to be refilled each time __zf_reactor_perform()
  *   is called at the beginning of the function. The reason is that the
@@ -632,7 +670,7 @@ __zf_reactor_perform(struct zf_stack* st, unsigned spin_cnt)
             next_packet_id = ef_vi_next_rx_rq_id(vi);
             next_packet = PKT_BUF_RX_START_BY_ID(&st->pool, next_packet_id);
             /* Is there a packet coming? */
-            packet_present = zfr_packet_header_present(next_packet);
+            packet_present = zfr_future_headers_present(st, nic, next_packet);
             if( packet_present )
               st->pftf.payload = next_packet;
           }
