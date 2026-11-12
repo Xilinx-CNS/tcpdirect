@@ -302,3 +302,17 @@ static inline void tcp_tx_cancel_delayed_ack(struct zf_tcp* tcp)
   zf_tcp_timers_timer_stop(tcp, ZF_TCP_TIMER_DACK);
 }
 
+// TODO: keepalive
+static inline void tcp_tx_cancel_keep_alive(struct zf_tcp* tcp)
+{
+  struct tcp_pcb* pcb = &tcp->pcb;
+  /* 
+     update pcb to indicate the timer has been cancelled. 
+     conditions to keep counting are no longer met.
+     Actions within zf_tcp_timers_timer_stop(tcp, ZF_TCP_TIME_KEEPALIVE):
+     - reset the counter for keepalive probes
+     - back to initial long base timer for first probes   
+  */
+ pcb->sent_probes=0;
+ zf_tcp_timers_timer_stop(tcp, ZF_TCP_TIMER_KEEPALIVE);
+}
