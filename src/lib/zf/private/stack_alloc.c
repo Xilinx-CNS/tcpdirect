@@ -572,20 +572,28 @@ static int zf_stack_init_nic_capabilities(struct zf_stack* st, int nicno)
 
   sti->nic[nicno].flags = 0;
 
-  rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_RX_FW_VARIANT, &variant);
-  if( rc != 0 ) {
-    zf_log_stack_err(st, "Failed to query RX mode for interface %s (rc %d)\n",
-                         sti->nic[nicno].if_name, rc);
-    return rc;
+  rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_RX_SHARED, &variant);
+  if( rc == 0 && variant != 0 ) {
+    /* X4/EFCT NICs use a shared RX queue across VIs; the per-VI firmware
+     * datapath variant concept does not apply, so skip that check. */
+    sti->nic[nicno].flags |= ZF_RES_NIC_FLAG_SHARED_RXQ;
   }
-  else if( variant != MC_CMD_GET_CAPABILITIES_OUT_RXDP_LOW_LATENCY &&
-           variant != MC_CMD_GET_CAPABILITIES_OUT_RXDP ) {
-    zf_log_stack_err(st, "Interface %s is not in supported mode for RX (%d).\n",
-                     sti->nic[nicno].if_name, variant);
-    return -EOPNOTSUPP;
+  else {
+    rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_RX_FW_VARIANT, &variant);
+    if( rc != 0 ) {
+      zf_log_stack_err(st, "Failed to query RX mode for interface %s (rc %d)\n",
+                           sti->nic[nicno].if_name, rc);
+      return rc;
+    }
+    else if( variant != MC_CMD_GET_CAPABILITIES_OUT_RXDP_LOW_LATENCY &&
+             variant != MC_CMD_GET_CAPABILITIES_OUT_RXDP ) {
+      zf_log_stack_err(st, "Interface %s is not in supported mode for RX (%d).\n",
+                       sti->nic[nicno].if_name, variant);
+      return -EOPNOTSUPP;
+    }
+    if( variant == MC_CMD_GET_CAPABILITIES_OUT_RXDP_LOW_LATENCY )
+      sti->nic[nicno].flags |= ZF_RES_NIC_FLAG_RX_LL;
   }
-  if( variant == MC_CMD_GET_CAPABILITIES_OUT_RXDP_LOW_LATENCY )
-    sti->nic[nicno].flags |= ZF_RES_NIC_FLAG_RX_LL;
 
   rc = ef_pd_capabilities_get(dh, pd, dh, EF_VI_CAP_TX_FW_VARIANT, &variant);
   if( rc != 0 ) {
@@ -682,8 +690,9 @@ int zf_stack_init_nic_resources(struct zf_stack_impl* sti,
   if( rc < 0 )
     goto fail1;
 
-  if( !(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_RX_LL) ||
-      !(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_TX_LL) ) {
+  if( !(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_SHARED_RXQ) &&
+      ( !(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_RX_LL) ||
+        !(sti->nic[nicno].flags & ZF_RES_NIC_FLAG_TX_LL) ) ) {
     zf_log_stack_warn(st, "Interface %s is not in low latency mode.\n",
                           sti->nic[nicno].if_name);
     zf_log_stack_warn(st, "Low latency mode is recommended for best "
